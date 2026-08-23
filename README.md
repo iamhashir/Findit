@@ -1,123 +1,63 @@
 # Findit
 
-Findit is a free, developer-focused technology news and trends aggregator. The goal is to make it easy for software engineers to keep up with important changes across AI, web development, cloud, DevOps, security, open source, and the broader software industry — without adding AI-generated analysis to the product.
+### One place to keep up with what is happening in software.
 
-## Vision
+## The Problem
 
-Software engineering changes quickly and useful updates are scattered across company blogs, engineering blogs, GitHub, RSS feeds, and developer communities. Findit brings those sources into one clean feed so developers can discover what is changing from the original sources.
+Software moves fast. Important updates are scattered across engineering blogs, GitHub, developer communities, product announcements, and RSS feeds.
 
-## MVP
+Keeping up means checking too many places and filtering through too much noise.
 
-The first version will focus on:
+## The Solution
 
-- A unified feed of developer and technology news
-- RSS and public API based ingestion
-- Topics such as AI, Web, Cloud, DevOps, Security, and Open Source
-- Filtering by topic and source
-- Latest and popular views
-- A directory of tracked sources
-- Deduplication so the same story is not shown repeatedly
-- Direct links back to the original source
-- Bookmarks as a later addition
+**Findit** brings useful software engineering news and trends into one simple feed.
 
-## Tech Stack
+It collects updates from trusted sources, organizes them by topic, removes duplicates, and links directly to the original content.
 
-- **Next.js** — full-stack React framework
-- **TypeScript** — application language
-- **Tailwind CSS** — styling
-- **shadcn/ui** — reusable UI components
-- **Convex** — database, backend functions, and scheduled ingestion jobs
-- **Vercel** — deployment and hosting
+No AI summaries. No generated opinions. Just the sources.
 
-## Architecture
+## What I'm Building
 
-```text
-RSS feeds / Public APIs / Developer sources
-                  |
-                  v
-        Convex scheduled jobs
-                  |
-                  v
-       Normalize + deduplicate
-                  |
-                  v
-             Convex DB
-                  |
-                  v
-          Next.js application
-                  |
-                  v
-              Vercel
-```
+- **Unified Feed**: Latest developer and technology updates in one place
+- **Topics**: AI, Web, Cloud, DevOps, Security, Open Source, and more
+- **Sources**: Follow updates from trusted engineering blogs and communities
+- **Filters**: Browse by topic, source, latest, or popular
+- **Bookmarks**: Save useful stories for later
 
-## Initial Data Sources
+## Sources
 
-Findit will prioritize official and primary sources where possible, including:
+Starting with sources like:
 
 - GitHub Blog
+- Hacker News
 - Vercel Blog
 - Cloudflare Blog
-- Hacker News
-- Framework and open-source project blogs
-- Engineering blogs from major technology companies
-- RSS feeds from trusted developer publications
+- Engineering blogs
+- Open source project blogs
+- RSS feeds
 
-More sources can be added over time through a central source configuration.
+## Stack
 
-## Planned Pages
+**Next.js** · **TypeScript** · **Tailwind CSS** · **shadcn/ui** · **Convex** · **Vercel**
 
-### Home
-A chronological feed of the latest stories with topic and source filters.
+## How It Works
 
-### Topics
-Browse stories grouped into categories such as AI, Web, Cloud, DevOps, Security, and Open Source.
-
-### Sources
-See all publications, engineering blogs, projects, and feeds tracked by Findit.
-
-### Story
-Display story metadata and provide a clear path to the original article rather than republishing its content.
-
-## Principles
-
-1. **Free-first** — keep infrastructure within free tiers while the project is small.
-2. **Source-first** — send readers to original reporting and official announcements.
-3. **No AI dependency** — the initial product works entirely through feeds, APIs, metadata, and deterministic rules.
-4. **Simple architecture** — one Next.js application backed by Convex.
-5. **Useful over noisy** — prioritize high-quality developer sources and deduplicate aggressively.
-
-## Development
-
-The project will be built with Next.js, TypeScript, Tailwind CSS, and Convex.
-
-Once the application is scaffolded, local development will generally look like:
-
-```bash
-npm install
-npm run dev
+```text
+Sources
+   ↓
+RSS + Public APIs
+   ↓
+Convex
+   ↓
+Clean + Deduplicate
+   ↓
+Findit
 ```
 
-Convex development will run alongside the Next.js application once it is configured.
+## Status
 
-## Roadmap
+🚧 Currently building the first version.
 
-- [ ] Scaffold Next.js + TypeScript project
-- [ ] Configure Tailwind CSS and shadcn/ui
-- [ ] Set up Convex
-- [ ] Define sources and article schema
-- [ ] Implement RSS ingestion
-- [ ] Add scheduled source refreshes
-- [ ] Normalize and deduplicate stories
-- [ ] Build home feed
-- [ ] Add topic/source filtering
-- [ ] Build sources directory
-- [ ] Deploy to Vercel
-- [ ] Add bookmarks and user accounts if needed
+## Goal
 
-## Contributing
-
-Findit is currently at the MVP stage. Issues and pull requests for useful sources, ingestion improvements, UI improvements, and bug fixes are welcome as the project develops.
-
-## License
-
-A license has not been selected yet.
+Make keeping up with software engineering simple, fast, and free.
