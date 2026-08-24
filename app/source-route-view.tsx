@@ -5,10 +5,20 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Bookmark,
+  Check,
+  MessageCircle,
+  Share2,
+} from "lucide-react";
+import { motion } from "motion/react";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { formatDate } from "./article-card";
 import type { Article } from "./article-types";
+import { SourceAvatar } from "./source-avatar";
 import { useReadingState } from "./use-reading-state";
 
 type SourceQuality = "primary" | "expert" | "publication" | "community";
@@ -54,9 +64,7 @@ export function SourceRouteView({ sourceKey }: { sourceKey: string }) {
   const groups = useMemo(() => groupArticles(result?.articles ?? []), [result?.articles]);
 
   useEffect(() => {
-    if (source && sourceKey !== source.slug) {
-      router.replace(`/source/${source.slug}`);
-    }
+    if (source && sourceKey !== source.slug) router.replace(`/source/${source.slug}`);
   }, [router, source, sourceKey]);
 
   function goBack() {
@@ -80,34 +88,32 @@ export function SourceRouteView({ sourceKey }: { sourceKey: string }) {
         window.setTimeout(() => setShared(false), 1600);
       }
     } catch {
-      // A canceled share sheet needs no UI error.
+      // Ignore canceled native share sheets.
     }
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[#050607] text-white">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-32 -top-28 size-80 rounded-full bg-cyan-300/[0.055] blur-[110px]" />
-        <div className="absolute -right-32 top-1/3 size-72 rounded-full bg-violet-400/[0.04] blur-[120px]" />
-      </div>
-
-      <div className="relative mx-auto min-h-screen w-full max-w-3xl px-4 pb-12 sm:px-6">
-        <header className="sticky top-0 z-10 -mx-4 flex items-center justify-between gap-2 border-b border-white/[0.07] bg-[#050607]/90 px-4 py-3.5 backdrop-blur-2xl sm:-mx-6 sm:px-6">
+    <main className="app-canvas min-h-screen text-white">
+      <div className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 -mx-4 flex h-14 items-center justify-between border-b border-white/[0.07] bg-[#0a0a0a]/92 px-4 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <button
             type="button"
             onClick={goBack}
-            className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+            aria-label="Go back"
+            className="flex size-9 items-center justify-center rounded-lg text-white/42 transition hover:bg-white/[0.055] hover:text-white"
           >
-            ← Back
+            <ArrowLeft className="size-[18px]" />
           </button>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-1">
             {source ? (
               <button
                 type="button"
                 onClick={() => void share()}
-                className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-white/48 transition hover:bg-white/[0.05] hover:text-white"
+                aria-label="Share source"
+                className="flex size-9 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/[0.055] hover:text-white"
               >
-                {shared ? "Copied" : "Share"}
+                {shared ? <Check className="size-4" /> : <Share2 className="size-4" />}
               </button>
             ) : null}
             {source ? (
@@ -115,9 +121,10 @@ export function SourceRouteView({ sourceKey }: { sourceKey: string }) {
                 href={source.siteUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-white/48 transition hover:bg-white/[0.05] hover:text-white"
+                aria-label={`Open ${source.name}`}
+                className="flex size-9 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/[0.055] hover:text-white"
               >
-                Visit ↗
+                <ArrowUpRight className="size-4" />
               </a>
             ) : null}
           </div>
@@ -126,37 +133,34 @@ export function SourceRouteView({ sourceKey }: { sourceKey: string }) {
         {source === undefined || (source && result === undefined) ? (
           <SourcePageSkeleton />
         ) : source === null ? (
-          <div className="py-20 text-center">
-            <p className="text-sm text-white/40">Source not found.</p>
-            <Link href="/" className="mt-5 inline-flex rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-zinc-950">
-              Go to Home
+          <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
+            <h1 className="text-xl font-semibold text-white/75">Source not found</h1>
+            <Link href="/" className="mt-5 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-zinc-950">
+              Home
             </Link>
           </div>
         ) : (
-          <div className="py-6">
+          <div className="py-7 sm:py-10">
             <SourceProfile source={source} result={result!} />
 
-            <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.025]">
-              <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-4 sm:px-5">
+            <section className="mt-9">
+              <div className="flex items-end justify-between gap-4 border-b border-white/[0.075] pb-4">
                 <div>
-                  <h2 className="text-sm font-semibold text-white/82">Latest stories</h2>
-                  <p className="mt-0.5 text-xs text-white/30">Newest indexed coverage from this source</p>
+                  <h2 className="text-lg font-semibold tracking-[-0.025em] text-white/82">Latest stories</h2>
+                  <p className="mt-0.5 text-xs text-white/30">{result!.articles.length} shown</p>
                 </div>
-                <span className="shrink-0 text-[11px] text-white/28">{result!.articles.length} shown</span>
               </div>
 
               {result!.articles.length === 0 ? (
-                <div className="px-5 py-14 text-center text-sm text-white/35">
-                  No indexed stories from this source yet.
-                </div>
+                <div className="py-16 text-center text-sm text-white/32">No indexed stories yet.</div>
               ) : (
                 <div>
                   {groups.map((group) => (
                     <section key={group.key}>
-                      <div className="border-b border-white/[0.06] bg-white/[0.018] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28 sm:px-5">
+                      <div className="sticky top-14 z-10 border-b border-white/[0.05] bg-[#0a0a0a]/95 py-2.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-white/25 backdrop-blur-xl">
                         {group.label}
                       </div>
-                      <div className="divide-y divide-white/[0.06]">
+                      <div>
                         {group.articles.map((article) => (
                           <SourceStoryRow
                             key={article._id}
@@ -190,58 +194,49 @@ function SourceProfile({
   const latest = result.articles[0]?.publishedAt;
 
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-      <div className="flex items-start gap-4">
-        <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] text-sm font-semibold tracking-wide text-cyan-100/80">
-          {source.name.slice(0, 2).toUpperCase()}
-        </div>
+    <section className="border-b border-white/[0.075] pb-8 sm:pb-10">
+      <div className="flex items-start gap-4 sm:gap-5">
+        <SourceAvatar url={source.siteUrl} name={source.name} size="lg" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/32">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium uppercase tracking-[0.11em] text-white/28">
             <span>{source.category}</span>
             <span>·</span>
             <span>{qualityLabel(source.quality)}</span>
             {source.priority === 1 ? (
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.06] px-2 py-0.5 text-cyan-100/65">
-                Core
-              </span>
+              <span className="rounded-md bg-white/[0.055] px-1.5 py-0.5 text-white/36">Core</span>
             ) : null}
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-[-0.035em] text-white/92 sm:text-3xl">
-            {source.name}
-          </h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-[-0.055em] text-white sm:text-[2.6rem]">{source.name}</h1>
           {source.description ? (
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/42">{source.description}</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/40 sm:text-[15px]">{source.description}</p>
           ) : null}
         </div>
       </div>
 
       {source.tags && source.tags.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-1.5">
+        <div className="mt-5 flex flex-wrap gap-1.5">
           {source.tags.map((tag) => (
-            <span key={tag} className="rounded-full border border-white/8 bg-white/[0.035] px-2.5 py-1 text-[10px] text-white/38">
+            <span key={tag} className="rounded-md bg-white/[0.04] px-2 py-1 text-[10px] text-white/32">
               {tag}
             </span>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-black/15">
-        <SourceMetric
-          label="Indexed"
-          value={result.countCapped ? `${result.articleCount}+` : String(result.articleCount)}
-        />
+      <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-xs">
+        <SourceMetric label="Indexed" value={result.countCapped ? `${result.articleCount}+` : String(result.articleCount)} />
         <SourceMetric label="Latest" value={latest ? formatDate(latest) : "—"} />
-        <SourceMetric label="Source" value={source.kind.toUpperCase()} last />
+        <SourceMetric label="Type" value={source.kind.toUpperCase()} />
       </div>
     </section>
   );
 }
 
-function SourceMetric({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
+function SourceMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`px-3 py-3 text-center ${last ? "" : "border-r border-white/[0.07]"}`}>
-      <div className="text-[10px] uppercase tracking-[0.12em] text-white/25">{label}</div>
-      <div className="mt-1 truncate text-xs font-semibold text-white/66">{value}</div>
+    <div className="flex items-baseline gap-2">
+      <span className="text-white/25">{label}</span>
+      <span className="font-semibold text-white/58">{value}</span>
     </div>
   );
 }
@@ -262,10 +257,13 @@ function SourceStoryRow({
   const author = cleanAuthor(article.author);
 
   return (
-    <article className={`px-4 py-4 transition sm:px-5 ${read ? "opacity-55" : "opacity-100"}`}>
+    <motion.article
+      layout
+      className={`group border-b border-white/[0.065] py-4.5 transition-opacity sm:py-5 ${read ? "opacity-50" : "opacity-100"}`}
+    >
       <div className="flex items-start gap-3">
         <button type="button" onClick={() => onOpen(article)} className="min-w-0 flex-1 text-left">
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-white/30">
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-white/28">
             <span>{formatDate(article.publishedAt)}</span>
             {author ? (
               <>
@@ -273,60 +271,41 @@ function SourceStoryRow({
                 <span className="max-w-[16rem] truncate">{author}</span>
               </>
             ) : null}
-            {typeof article.score === "number" ? (
-              <>
-                <span>·</span>
-                <span>▲ {article.score}</span>
-              </>
+            {typeof article.score === "number" ? <><span>·</span><span>▲ {article.score}</span></> : null}
+            {typeof article.commentCount === "number" ? (
+              <span className="flex items-center gap-1">
+                <span>·</span><MessageCircle className="size-3" /> {article.commentCount}
+              </span>
             ) : null}
-            {typeof article.commentCount === "number" ? <span>· {article.commentCount} comments</span> : null}
-            {read ? <span>· Read</span> : null}
+            {read ? <><span>·</span><span>Read</span></> : null}
           </div>
-          <h3 className="mt-1.5 text-[15px] font-semibold leading-6 tracking-[-0.018em] text-white/88 transition hover:text-cyan-100 sm:text-base">
+          <h3 className="mt-1.5 text-[15px] font-semibold leading-6 tracking-[-0.02em] text-white/82 transition group-hover:text-white sm:text-base">
             {article.title}
           </h3>
           {article.description ? (
-            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-white/38">{article.description}</p>
+            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-white/35">{article.description}</p>
           ) : null}
         </button>
 
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.9 }}
           onClick={() => onToggleSaved(article._id)}
           aria-label={saved ? "Remove from saved" : "Save article"}
-          className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border transition ${
-            saved
-              ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
-              : "border-white/8 text-white/28 hover:border-white/18 hover:text-white"
+          className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg transition ${
+            saved ? "bg-white text-zinc-950" : "text-white/25 hover:bg-white/[0.055] hover:text-white"
           }`}
         >
-          <BookmarkIcon filled={saved} />
-        </button>
+          <Bookmark className="size-4" fill={saved ? "currentColor" : "none"} />
+        </motion.button>
       </div>
-    </article>
-  );
-}
-
-function BookmarkIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-3.5"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 4.75A1.75 1.75 0 0 1 7.75 3h8.5A1.75 1.75 0 0 1 18 4.75V21l-6-3.8L6 21V4.75Z" />
-    </svg>
+    </motion.article>
   );
 }
 
 function qualityLabel(quality?: SourceQuality) {
-  if (quality === "primary") return "Primary source";
-  if (quality === "expert") return "Expert source";
+  if (quality === "primary") return "Primary";
+  if (quality === "expert") return "Expert";
   if (quality === "publication") return "Publication";
   if (quality === "community") return "Community";
   return "Source";
@@ -368,11 +347,11 @@ function startOfDay(timestamp: number) {
 
 function SourcePageSkeleton() {
   return (
-    <div className="space-y-5 py-6">
-      <div className="h-52 animate-pulse rounded-[1.75rem] border border-white/8 bg-white/[0.025]" />
-      <div className="overflow-hidden rounded-[1.75rem] border border-white/8 bg-white/[0.02]">
+    <div className="space-y-8 py-8 sm:py-10">
+      <div className="h-44 animate-pulse border-b border-white/[0.07] bg-white/[0.01]" />
+      <div>
         {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.015]" />
+          <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.01]" />
         ))}
       </div>
     </div>
