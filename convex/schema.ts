@@ -45,4 +45,23 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["topic"],
     }),
+
+  articleSearch: defineTable({
+    articleId: v.id("articles"),
+    searchText: v.string(),
+    topic: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_article", ["articleId"])
+    .searchIndex("search_text", {
+      searchField: "searchText",
+      filterFields: ["topic"],
+    }),
+
+  searchBackfill: defineTable({
+    key: v.string(),
+    cursor: v.optional(v.string()),
+    done: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });
