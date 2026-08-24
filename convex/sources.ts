@@ -63,6 +63,14 @@ export const listAll = query({
   },
 });
 
+export const getById = query({
+  args: { id: v.id("sources") },
+  returns: v.union(sourceValidator, v.null()),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const getByIdInternal = internalQuery({
   args: { id: v.id("sources") },
   returns: v.union(sourceValidator, v.null()),
