@@ -9,6 +9,7 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added the initial recommended technology and AI source set.
 - Added source types for RSS, API, and Web ingestion.
 - Added Cheerio + Mozilla Readability article scraping in Convex.
+- Added dedicated RSS and Atom feed parsing for RSS sources.
 - Added article discovery, extraction, deduplication, and persistence to the `articles` table.
 - Added per-source and enabled-source sync controls.
 - Added hourly scheduled Convex ingestion for enabled sources.
@@ -16,6 +17,8 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added `TECHNICAL.md` with the current architecture and operational notes.
 
 ### Changed
+- Source synchronization now routes RSS sources through their configured feed URLs and keeps HTML scraping as the fallback for other source types.
+- Manual Settings sync and scheduled hourly sync now share the same ingestion router.
 - Simplified the mobile UI and removed non-functional marketing copy.
 - Finder now derives source categories from live backend data.
 - Vercel builds now deploy Convex before building the Next.js frontend.
