@@ -8,6 +8,13 @@ const kindValidator = v.union(
   v.literal("web"),
 );
 
+const qualityValidator = v.union(
+  v.literal("primary"),
+  v.literal("expert"),
+  v.literal("publication"),
+  v.literal("community"),
+);
+
 const sourceValidator = v.object({
   _id: v.id("sources"),
   _creationTime: v.number(),
@@ -23,6 +30,10 @@ const sourceValidator = v.object({
   updatedAt: v.optional(v.number()),
   recommended: v.optional(v.boolean()),
   rank: v.optional(v.number()),
+  description: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  quality: v.optional(qualityValidator),
+  priority: v.optional(v.number()),
 });
 
 function sortSources<T extends { name: string; rank?: number }>(sources: T[]) {
@@ -105,30 +116,34 @@ export const ensureRecommended = mutation({
         .withIndex("by_slug", (q) => q.eq("slug", source.slug))
         .unique();
 
+      const curatedFields = {
+        name: source.name,
+        siteUrl: source.siteUrl,
+        kind: source.kind,
+        category: source.category,
+        recommended: true,
+        rank: source.rank,
+        description: source.description,
+        tags: [...source.tags],
+        quality: source.quality,
+        priority: source.priority,
+        ...("feedUrl" in source ? { feedUrl: source.feedUrl } : {}),
+        ...("apiUrl" in source ? { apiUrl: source.apiUrl } : {}),
+      };
+
       if (existing) {
-        if (existing.recommended !== true || existing.rank !== source.rank) {
-          await ctx.db.patch(existing._id, {
-            recommended: true,
-            rank: source.rank,
-            updatedAt: now,
-          });
-        }
+        await ctx.db.patch(existing._id, {
+          ...curatedFields,
+          updatedAt: now,
+        });
         continue;
       }
 
       await ctx.db.insert("sources", {
-        name: source.name,
-        slug: source.slug,
-        siteUrl: source.siteUrl,
-        ...("feedUrl" in source ? { feedUrl: source.feedUrl } : {}),
-        ...("apiUrl" in source ? { apiUrl: source.apiUrl } : {}),
-        kind: source.kind,
-        category: source.category,
+        ...curatedFields,
         enabled: true,
         createdAt: now,
         updatedAt: now,
-        recommended: true,
-        rank: source.rank,
       });
       added += 1;
     }
