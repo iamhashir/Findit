@@ -52,6 +52,7 @@ export default function Home() {
               readSet={reading.readSet}
               onOpenArticle={openArticle}
               onToggleSaved={reading.toggleSaved}
+              onOpenSource={setSelectedSourceId}
             />
           )}
           {view === "search" && (
@@ -72,6 +73,7 @@ export default function Home() {
               readSet={reading.readSet}
               onOpenArticle={openArticle}
               onToggleSaved={reading.toggleSaved}
+              onOpenSource={setSelectedSourceId}
             />
           )}
           {view === "settings" && <SourceManager />}
@@ -161,11 +163,13 @@ function HomeView({
   readSet,
   onOpenArticle,
   onToggleSaved,
+  onOpenSource,
 }: {
   savedSet: Set<Id<"articles">>;
   readSet: Set<Id<"articles">>;
   onOpenArticle: (article: Article) => void;
   onToggleSaved: (id: Id<"articles">) => void;
+  onOpenSource: (sourceId: Id<"sources">) => void;
 }) {
   const sources = useQuery(api.sources.list, {});
   const [mode, setMode] = useState<FeedMode>("latest");
@@ -217,6 +221,7 @@ function HomeView({
         readSet={readSet}
         onOpenArticle={onOpenArticle}
         onToggleSaved={onToggleSaved}
+        onOpenSource={onOpenSource}
       />
     </section>
   );
