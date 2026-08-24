@@ -9,21 +9,24 @@ export function ArticleReader({
   saved,
   onClose,
   onToggleSaved,
+  onOpenSource,
 }: {
   article: Article;
   saved: boolean;
   onClose: () => void;
   onToggleSaved: (id: Id<"articles">) => void;
+  onOpenSource?: () => void;
 }) {
   const [shared, setShared] = useState(false);
   const body = article.content?.trim() || article.description?.trim();
 
   async function share() {
+    const url = window.location.href;
     try {
       if (navigator.share) {
-        await navigator.share({ title: article.title, url: article.url });
+        await navigator.share({ title: article.title, url });
       } else {
-        await navigator.clipboard.writeText(article.url);
+        await navigator.clipboard.writeText(url);
         setShared(true);
         window.setTimeout(() => setShared(false), 1600);
       }
@@ -66,9 +69,19 @@ export function ArticleReader({
         <div className="flex-1 overflow-y-auto px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
           <article className="mx-auto max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 text-xs text-white/40">
-              <span className="font-semibold uppercase tracking-[0.13em] text-cyan-200/75">
-                {article.sourceName}
-              </span>
+              {onOpenSource ? (
+                <button
+                  type="button"
+                  onClick={onOpenSource}
+                  className="font-semibold uppercase tracking-[0.13em] text-cyan-200/75 transition hover:text-cyan-100"
+                >
+                  {article.sourceName}
+                </button>
+              ) : (
+                <span className="font-semibold uppercase tracking-[0.13em] text-cyan-200/75">
+                  {article.sourceName}
+                </span>
+              )}
               {article.topic && <span>· {article.topic}</span>}
               <span>· {new Date(article.publishedAt).toLocaleDateString()}</span>
             </div>
