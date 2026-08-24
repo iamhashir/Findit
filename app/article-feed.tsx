@@ -112,11 +112,11 @@ export function ArticleFeed({
         })}
       </div>
 
-      {result?.hasMore && limit < 80 ? (
+      {result?.hasMore && limit < 60 ? (
         <div className="pt-6 text-center">
           <button
             type="button"
-            onClick={() => setLimit((current) => Math.min(80, current + 20))}
+            onClick={() => setLimit((current) => Math.min(60, current + 15))}
             className="pressable rounded-2xl border border-white/10 bg-white/[0.025] px-5 py-3 text-xs font-semibold text-white/48 hover:bg-white/[0.06] hover:text-white"
           >
             Keep going ↓
