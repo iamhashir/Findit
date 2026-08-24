@@ -10,17 +10,23 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added source types for RSS, API, and Web ingestion.
 - Added Cheerio + Mozilla Readability article scraping in Convex.
 - Added dedicated RSS and Atom feed parsing for RSS sources.
+- Added Hacker News API ingestion with points and comment counts.
 - Added article discovery, extraction, deduplication, and persistence to the `articles` table.
 - Added per-source and enabled-source sync controls.
 - Added hourly scheduled Convex ingestion for enabled sources.
-- Added the scraped article feed on Home.
+- Added Latest and Trending Home feeds with topic and unread filters.
+- Added global article/source search.
+- Added in-app article reading with original-source links.
+- Added browser-local Save/Read Later and read/unread state.
+- Added load-more support for larger feed browsing sessions.
 - Added `TECHNICAL.md` with the current architecture and operational notes.
 
 ### Changed
-- Source synchronization now routes RSS sources through their configured feed URLs and keeps HTML scraping as the fallback for other source types.
+- Source synchronization now routes RSS sources through their configured feed URLs, Hacker News through its API, and keeps HTML scraping as the fallback for other source types.
 - Manual Settings sync and scheduled hourly sync now share the same ingestion router.
+- Primary mobile navigation is now Home, Search, and Saved; Settings moved to the header.
+- Home now supports topic-aware discovery rather than a single latest-only article list.
 - Simplified the mobile UI and removed non-functional marketing copy.
-- Finder now derives source categories from live backend data.
 - Vercel builds now deploy Convex before building the Next.js frontend.
 
 ### Fixed
