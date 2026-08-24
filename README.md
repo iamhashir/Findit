@@ -38,7 +38,22 @@ Starting with sources like:
 
 ## Stack
 
-**Next.js** · **TypeScript** · **Tailwind CSS** · **shadcn/ui** · **Convex** · **Vercel**
+**Next.js** · **TypeScript** · **Tailwind CSS** · **Convex** · **Vercel**
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Convex is installed and ready to initialize when the backend work starts:
+
+```bash
+npm run convex:dev
+```
 
 ## How It Works
 
@@ -56,7 +71,7 @@ Findit
 
 ## Status
 
-🚧 Currently building the first version.
+🚧 Building the first version.
 
 ## Goal
 
