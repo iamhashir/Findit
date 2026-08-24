@@ -8,12 +8,9 @@ export function SourcesList() {
 
   if (sources === undefined) {
     return (
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {[0, 1, 2, 3].map((item) => (
-          <div
-            key={item}
-            className="h-28 animate-pulse rounded-3xl border border-white/8 bg-white/[0.035]"
-          />
+          <div key={item} className="h-20 animate-pulse rounded-2xl border border-white/8 bg-white/[0.03]" />
         ))}
       </div>
     );
@@ -21,33 +18,31 @@ export function SourcesList() {
 
   if (sources.length === 0) {
     return (
-      <div className="mt-5 rounded-3xl border border-dashed border-white/10 bg-white/[0.025] p-6 text-sm text-white/45">
-        Convex is connected. Seed the starting sources to bring the feed online.
+      <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center text-sm text-white/35">
+        No sources enabled
       </div>
     );
   }
 
   return (
-    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
       {sources.map((source) => (
         <a
           key={source._id}
           href={source.siteUrl}
           target="_blank"
           rel="noreferrer"
-          className="group rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/25 hover:bg-white/[0.065]"
+          className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan-300/25 hover:bg-white/[0.06]"
         >
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-xs font-semibold text-cyan-100/80">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-xs font-semibold text-cyan-100/75">
               {source.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="truncate text-sm font-medium text-white/85">{source.name}</h4>
-              <p className="mt-0.5 text-xs text-white/30">{source.category}</p>
+              <h3 className="truncate text-sm font-medium text-white/85">{source.name}</h3>
+              <p className="mt-0.5 truncate text-xs text-white/30">{source.category}</p>
             </div>
-            <span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.16em] text-white/30">
-              {source.kind}
-            </span>
+            <span className="text-[10px] uppercase tracking-[0.12em] text-white/25">{source.kind}</span>
           </div>
         </a>
       ))}
