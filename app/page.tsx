@@ -10,6 +10,7 @@ import type { Article } from "./article-types";
 import { SavedView } from "./saved-view";
 import { SearchView } from "./search-view";
 import { SourceManager } from "./source-manager";
+import { SourcePage } from "./source-page";
 import { useReadingState } from "./use-reading-state";
 
 type View = "home" | "search" | "saved" | "settings";
@@ -18,6 +19,7 @@ type IconName = "home" | "search" | "bookmark" | "settings";
 export default function Home() {
   const [view, setView] = useState<View>("home");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<Id<"sources"> | null>(null);
   const ensureRecommended = useMutation(api.sources.ensureRecommended);
   const initialized = useRef(false);
   const reading = useReadingState();
@@ -59,6 +61,7 @@ export default function Home() {
                 readSet={reading.readSet}
                 onOpenArticle={openArticle}
                 onToggleSaved={reading.toggleSaved}
+                onOpenSource={setSelectedSourceId}
               />
             </section>
           )}
@@ -80,6 +83,17 @@ export default function Home() {
           activeView={view}
           savedCount={reading.savedIds.length}
           onChange={setView}
+        />
+      )}
+
+      {selectedSourceId && (
+        <SourcePage
+          sourceId={selectedSourceId}
+          savedSet={reading.savedSet}
+          readSet={reading.readSet}
+          onClose={() => setSelectedSourceId(null)}
+          onOpenArticle={openArticle}
+          onToggleSaved={reading.toggleSaved}
         />
       )}
 
