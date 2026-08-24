@@ -12,12 +12,14 @@ export function SavedView({
   readSet,
   onOpenArticle,
   onToggleSaved,
+  onOpenSource,
 }: {
   savedIds: Id<"articles">[];
   savedSet: Set<Id<"articles">>;
   readSet: Set<Id<"articles">>;
   onOpenArticle: (article: Article) => void;
   onToggleSaved: (id: Id<"articles">) => void;
+  onOpenSource: (sourceId: Id<"sources">) => void;
 }) {
   const articles = useQuery(
     api.articles.getMany,
@@ -63,6 +65,7 @@ export function SavedView({
             read={readSet.has(article._id)}
             onOpen={onOpenArticle}
             onToggleSaved={onToggleSaved}
+            onOpenSource={onOpenSource}
           />
         ))}
       </div>
