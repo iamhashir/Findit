@@ -2,8 +2,8 @@ import { v } from "convex/values";
 import { anyApi, type FunctionReference } from "convex/server";
 import { internalAction } from "./_generated/server";
 
-const MAX_SOURCES_PER_RUN = 10;
-const MAX_ARTICLES_PER_SOURCE = 6;
+const MAX_SOURCES_PER_RUN = 50;
+const MAX_ARTICLES_PER_SOURCE = 4;
 
 const syncAll = (anyApi as any).ingestion.syncAll as FunctionReference<
   "action",
