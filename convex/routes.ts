@@ -7,6 +7,13 @@ const kindValidator = v.union(
   v.literal("web"),
 );
 
+const qualityValidator = v.union(
+  v.literal("primary"),
+  v.literal("expert"),
+  v.literal("publication"),
+  v.literal("community"),
+);
+
 const sourceValidator = v.object({
   _id: v.id("sources"),
   _creationTime: v.number(),
@@ -22,6 +29,10 @@ const sourceValidator = v.object({
   updatedAt: v.optional(v.number()),
   recommended: v.optional(v.boolean()),
   rank: v.optional(v.number()),
+  description: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  quality: v.optional(qualityValidator),
+  priority: v.optional(v.number()),
 });
 
 const articleValidator = v.object({
