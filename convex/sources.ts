@@ -122,6 +122,7 @@ export const ensureRecommended = mutation({
 
       const curatedFields = {
         name: source.name,
+        slug: source.slug,
         siteUrl: source.siteUrl,
         kind: source.kind,
         category: source.category,
