@@ -15,6 +15,8 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added per-source and enabled-source sync controls.
 - Added hourly scheduled Convex ingestion for enabled sources.
 - Added Latest and Trending Home feeds with topic and unread filters.
+- Added source-driven story clustering that groups strongly overlapping recent headlines across publications.
+- Added expandable coverage cards with primary coverage, additional sources, and Hacker News discussion context.
 - Added global article/source search.
 - Added in-app article reading with original-source links.
 - Added dedicated source pages with source metadata, indexed story counts, latest stories, and original-site links.
@@ -26,7 +28,8 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Source synchronization now routes RSS sources through their configured feed URLs, Hacker News through its API, and keeps HTML scraping as the fallback for other source types.
 - Manual Settings sync and scheduled hourly sync now share the same ingestion router.
 - Primary mobile navigation is now Home, Search, and Saved; Settings moved to the header.
-- Home now supports topic-aware discovery rather than a single latest-only article list.
+- Home now clusters matching multi-source coverage while keeping single-source stories as normal feed cards.
+- Trending gives a bounded boost to stories independently covered by multiple sources.
 - Source names in Home, Search, and Saved now open native Findit source pages instead of forcing an external navigation.
 - Simplified the mobile UI and removed non-functional marketing copy.
 - Vercel builds now deploy Convex before building the Next.js frontend.
