@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { internalMutation, query } from "./_generated/server";
 
 const articleValidator = v.object({
@@ -20,6 +21,14 @@ const articleValidator = v.object({
   scrapedAt: v.optional(v.number()),
   score: v.optional(v.number()),
   commentCount: v.optional(v.number()),
+});
+
+const storyClusterValidator = v.object({
+  primary: articleValidator,
+  articles: v.array(articleValidator),
+  sourceCount: v.number(),
+  latestAt: v.number(),
+  isCluster: v.boolean(),
 });
 
 export const listLatest = query({
@@ -73,6 +82,49 @@ export const listTrending = query({
     return recent
       .sort((a, b) => trendScore(b, now) - trendScore(a, now))
       .slice(0, limit);
+  },
+});
+
+export const listClusters = query({
+  args: {
+    mode: v.union(v.literal("latest"), v.literal("trending")),
+    limit: v.optional(v.number()),
+    topic: v.optional(v.string()),
+  },
+  returns: v.object({
+    clusters: v.array(storyClusterValidator),
+    hasMore: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const limit = bounded(args.limit ?? 30, 1, 80);
+    const sampleSize = Math.min(240, Math.max(90, limit * 6));
+
+    const recent = args.topic
+      ? await ctx.db
+          .query("articles")
+          .withIndex("by_topic_and_published_at", (q) => q.eq("topic", args.topic))
+          .order("desc")
+          .take(sampleSize)
+      : await ctx.db
+          .query("articles")
+          .withIndex("by_published_at")
+          .order("desc")
+          .take(sampleSize);
+
+    const now = Date.now();
+    const clusters = clusterArticles(recent);
+
+    clusters.sort((a, b) => {
+      if (args.mode === "trending") {
+        return clusterTrendScore(b, now) - clusterTrendScore(a, now);
+      }
+      return b.latestAt - a.latestAt;
+    });
+
+    return {
+      clusters: clusters.slice(0, limit),
+      hasMore: clusters.length > limit || recent.length === sampleSize,
+    };
   },
 });
 
@@ -207,6 +259,191 @@ export const upsertScraped = internalMutation({
     return { id, created: true };
   },
 });
+
+type StoryCluster = {
+  primary: Doc<"articles">;
+  articles: Doc<"articles">[];
+  sourceCount: number;
+  latestAt: number;
+  isCluster: boolean;
+};
+
+type WorkingCluster = {
+  articles: Doc<"articles">[];
+  tokenSets: Set<string>[];
+  earliestAt: number;
+  latestAt: number;
+};
+
+const CLUSTER_WINDOW_MS = 72 * 60 * 60 * 1_000;
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "for",
+  "from",
+  "has",
+  "have",
+  "how",
+  "in",
+  "into",
+  "is",
+  "it",
+  "its",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "their",
+  "this",
+  "to",
+  "with",
+]);
+
+function clusterArticles(articles: Doc<"articles">[]): StoryCluster[] {
+  const ordered = [...articles].sort((a, b) => b.publishedAt - a.publishedAt);
+  const working: WorkingCluster[] = [];
+
+  for (const article of ordered) {
+    const tokens = titleTokens(article.title);
+    let bestCluster: WorkingCluster | null = null;
+    let bestSimilarity = 0;
+
+    for (const candidate of working) {
+      if (article.publishedAt < candidate.latestAt - CLUSTER_WINDOW_MS) continue;
+
+      let similarity = 0;
+      for (const existingTokens of candidate.tokenSets.slice(0, 5)) {
+        similarity = Math.max(similarity, titleSimilarity(tokens, existingTokens));
+      }
+
+      if (similarity >= 1 && similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestCluster = candidate;
+      }
+    }
+
+    if (bestCluster) {
+      bestCluster.articles.push(article);
+      bestCluster.tokenSets.push(tokens);
+      bestCluster.earliestAt = Math.min(bestCluster.earliestAt, article.publishedAt);
+      bestCluster.latestAt = Math.max(bestCluster.latestAt, article.publishedAt);
+      continue;
+    }
+
+    working.push({
+      articles: [article],
+      tokenSets: [tokens],
+      earliestAt: article.publishedAt,
+      latestAt: article.publishedAt,
+    });
+  }
+
+  return working.map((cluster) => finalizeCluster(cluster));
+}
+
+function finalizeCluster(cluster: WorkingCluster): StoryCluster {
+  const bySource = new Map<string, Doc<"articles">>();
+  for (const article of cluster.articles) {
+    const key = article.sourceId;
+    const existing = bySource.get(key);
+    if (!existing || article.publishedAt > existing.publishedAt) {
+      bySource.set(key, article);
+    }
+  }
+
+  const uniqueArticles = [...bySource.values()];
+  const primary = choosePrimary(uniqueArticles);
+  const remaining = uniqueArticles
+    .filter((article) => article._id !== primary._id)
+    .sort((a, b) => {
+      const aHn = isHackerNews(a) ? 1 : 0;
+      const bHn = isHackerNews(b) ? 1 : 0;
+      return aHn - bHn || b.publishedAt - a.publishedAt;
+    });
+  const articles = [primary, ...remaining];
+
+  return {
+    primary,
+    articles,
+    sourceCount: new Set(articles.map((article) => article.sourceId)).size,
+    latestAt: Math.max(...articles.map((article) => article.publishedAt)),
+    isCluster: articles.length > 1,
+  };
+}
+
+function choosePrimary(articles: Doc<"articles">[]) {
+  return [...articles].sort((a, b) => {
+    const qualityDifference = primaryQuality(b) - primaryQuality(a);
+    if (qualityDifference !== 0) return qualityDifference;
+    return a.publishedAt - b.publishedAt;
+  })[0];
+}
+
+function primaryQuality(article: Doc<"articles">) {
+  let score = isHackerNews(article) ? 0 : 10;
+  if (article.content && article.content.length > 400) score += 4;
+  if (article.description && article.description.length > 80) score += 2;
+  if (article.author) score += 1;
+  return score;
+}
+
+function isHackerNews(article: Doc<"articles">) {
+  return article.sourceName.toLowerCase().includes("hacker news");
+}
+
+function titleTokens(title: string) {
+  const tokens = title
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.replace(/[^a-z0-9]/g, ""))
+    .filter((token) => token.length >= 2 && !STOP_WORDS.has(token));
+  return new Set(tokens);
+}
+
+function titleSimilarity(a: Set<string>, b: Set<string>) {
+  if (a.size === 0 || b.size === 0) return 0;
+
+  let intersection = 0;
+  let distinctiveShared = 0;
+  for (const token of a) {
+    if (!b.has(token)) continue;
+    intersection += 1;
+    if (token.length >= 5 || /\d/.test(token)) distinctiveShared += 1;
+  }
+
+  if (intersection < 2) return 0;
+
+  const minSize = Math.min(a.size, b.size);
+  const unionSize = a.size + b.size - intersection;
+  const overlap = intersection / minSize;
+  const jaccard = intersection / unionSize;
+
+  if (intersection >= 3 && overlap >= 0.67 && jaccard >= 0.45) return 1;
+  if (
+    intersection >= 2 &&
+    minSize <= 4 &&
+    overlap >= 0.66 &&
+    jaccard >= 0.5 &&
+    distinctiveShared >= 1
+  ) {
+    return 1;
+  }
+
+  return 0;
+}
+
+function clusterTrendScore(cluster: StoryCluster, now: number) {
+  const strongestArticle = Math.max(...cluster.articles.map((article) => trendScore(article, now)));
+  const coverageBonus = Math.min(24, Math.max(0, cluster.sourceCount - 1) * 8);
+  return strongestArticle + coverageBonus;
+}
 
 function trendScore(
   article: { publishedAt: number; score?: number; commentCount?: number },
