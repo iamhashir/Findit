@@ -49,6 +49,11 @@ export default defineSchema({
     lastSkipped: v.number(),
     lastDurationMs: v.number(),
     lastNeedsBrowser: v.boolean(),
+    qualitySampleSize: v.optional(v.number()),
+    latestArticleAt: v.optional(v.number()),
+    missingDescriptionRate: v.optional(v.number()),
+    missingAuthorRate: v.optional(v.number()),
+    missingImageRate: v.optional(v.number()),
   }).index("by_source", ["sourceId"]),
 
   articles: defineTable({
@@ -71,18 +76,27 @@ export default defineSchema({
   })
     .index("by_url", ["url"])
     .index("by_source", ["sourceId"])
+    .index("by_source_and_published_at", ["sourceId", "publishedAt"])
     .index("by_published_at", ["publishedAt"])
-    .index("by_topic_and_published_at", ["topic", "publishedAt"])
-    .searchIndex("search_title", {
-      searchField: "title",
-      filterFields: ["topic"],
-    }),
+    .index("by_topic_and_published_at", ["topic", "publishedAt"]),
 
   articleSearch: defineTable({
     articleId: v.id("articles"),
     searchText: v.string(),
     topic: v.optional(v.string()),
     updatedAt: v.number(),
+    articleCreationTime: v.optional(v.number()),
+    title: v.optional(v.string()),
+    url: v.optional(v.string()),
+    sourceId: v.optional(v.id("sources")),
+    sourceName: v.optional(v.string()),
+    publishedAt: v.optional(v.number()),
+    discoveredAt: v.optional(v.number()),
+    description: v.optional(v.string()),
+    author: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    score: v.optional(v.number()),
+    commentCount: v.optional(v.number()),
   })
     .index("by_article", ["articleId"])
     .searchIndex("search_text", {
