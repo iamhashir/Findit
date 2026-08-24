@@ -5,9 +5,15 @@ import { useQuery } from "convex/react";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { ArticleCard } from "./article-card";
-import type { Article } from "./article-types";
+import type { Article, StoryCluster } from "./article-types";
+import { StoryClusterCard } from "./story-cluster-card";
 
 export type FeedMode = "latest" | "trending";
+
+type ClusterResult = {
+  clusters: StoryCluster[];
+  hasMore: boolean;
+};
 
 export function ArticleFeed({
   mode,
@@ -34,21 +40,21 @@ export function ArticleFeed({
     setLimit(30);
   }, [mode, topic]);
 
-  const args = { limit, topic: topic ?? undefined };
-  const latest = useQuery(api.articles.listLatest, mode === "latest" ? args : "skip") as
-    | Article[]
-    | undefined;
-  const trending = useQuery(api.articles.listTrending, mode === "trending" ? args : "skip") as
-    | Article[]
-    | undefined;
-  const articles = mode === "latest" ? latest : trending;
+  const result = useQuery(api.articles.listClusters, {
+    mode,
+    limit,
+    topic: topic ?? undefined,
+  }) as ClusterResult | undefined;
 
-  const visibleArticles = useMemo(() => {
-    if (!articles) return undefined;
-    return unreadOnly ? articles.filter((article) => !readSet.has(article._id)) : articles;
-  }, [articles, readSet, unreadOnly]);
+  const visibleClusters = useMemo(() => {
+    if (!result) return undefined;
+    if (!unreadOnly) return result.clusters;
+    return result.clusters.filter((cluster) =>
+      cluster.articles.some((article) => !readSet.has(article._id)),
+    );
+  }, [readSet, result, unreadOnly]);
 
-  if (visibleArticles === undefined) {
+  if (visibleClusters === undefined) {
     return (
       <div className="grid gap-3 py-1">
         {[0, 1, 2, 3, 4].map((item) => (
@@ -58,7 +64,7 @@ export function ArticleFeed({
     );
   }
 
-  if (visibleArticles.length === 0) {
+  if (visibleClusters.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-white/35">
         {unreadOnly ? "You have read everything in this view." : "No articles in this view yet."}
@@ -69,24 +75,36 @@ export function ArticleFeed({
   return (
     <div>
       <div>
-        {visibleArticles.map((article) => (
-          <ArticleCard
-            key={article._id}
-            article={article}
-            saved={savedSet.has(article._id)}
-            read={readSet.has(article._id)}
-            onOpen={onOpenArticle}
-            onToggleSaved={onToggleSaved}
-            onOpenSource={onOpenSource}
-          />
-        ))}
+        {visibleClusters.map((cluster) =>
+          cluster.isCluster ? (
+            <StoryClusterCard
+              key={cluster.primary._id}
+              cluster={cluster}
+              savedSet={savedSet}
+              readSet={readSet}
+              onOpenArticle={onOpenArticle}
+              onToggleSaved={onToggleSaved}
+              onOpenSource={onOpenSource}
+            />
+          ) : (
+            <ArticleCard
+              key={cluster.primary._id}
+              article={cluster.primary}
+              saved={savedSet.has(cluster.primary._id)}
+              read={readSet.has(cluster.primary._id)}
+              onOpen={onOpenArticle}
+              onToggleSaved={onToggleSaved}
+              onOpenSource={onOpenSource}
+            />
+          ),
+        )}
       </div>
 
-      {articles && articles.length >= limit && limit < 100 && (
+      {result.hasMore && limit < 80 && (
         <div className="pt-4 text-center">
           <button
             type="button"
-            onClick={() => setLimit((current) => Math.min(100, current + 20))}
+            onClick={() => setLimit((current) => Math.min(80, current + 20))}
             className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-medium text-white/48 transition hover:bg-white/[0.05] hover:text-white"
           >
             Load more
