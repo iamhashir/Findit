@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import type { Id } from "../convex/_generated/dataModel";
@@ -57,9 +58,9 @@ export function ArticleFeed({
   if (visibleClusters === undefined) {
     return (
       <div className="space-y-3">
-        <div className="h-64 animate-pulse rounded-[1.7rem] border border-white/8 bg-white/[0.03]" />
+        <div className="h-[360px] animate-pulse rounded-2xl bg-white/[0.035]" />
         {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
+          <div key={item} className="h-32 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
         ))}
       </div>
     );
@@ -67,15 +68,12 @@ export function ArticleFeed({
 
   if (visibleClusters.length === 0) {
     return (
-      <div className="rounded-[1.6rem] border border-dashed border-white/10 bg-white/[0.018] px-5 py-14 text-center">
-        <div className="mx-auto size-2 rounded-full bg-cyan-300/65 shadow-[0_0_22px_rgba(103,232,249,0.4)]" />
-        <p className="mt-4 text-sm font-medium text-white/60">
-          {unreadOnly ? "You are caught up." : "Nothing here yet."}
+      <div className="flex min-h-[280px] flex-col items-center justify-center border-b border-white/[0.07] text-center">
+        <p className="text-sm font-medium text-white/58">
+          {unreadOnly ? "You’re caught up." : "No stories in this view."}
         </p>
-        <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-white/28">
-          {unreadOnly
-            ? "New stories will appear here as your sources publish them."
-            : "Try another topic or switch between Latest and Trending."}
+        <p className="mt-1 text-xs text-white/27">
+          {unreadOnly ? "Turn off Unread to see everything." : "Try another topic or feed mode."}
         </p>
       </div>
     );
@@ -113,13 +111,13 @@ export function ArticleFeed({
       </div>
 
       {result?.hasMore && limit < 60 ? (
-        <div className="pt-6 text-center">
+        <div className="flex justify-center pt-7">
           <button
             type="button"
             onClick={() => setLimit((current) => Math.min(60, current + 15))}
-            className="pressable rounded-2xl border border-white/10 bg-white/[0.025] px-5 py-3 text-xs font-semibold text-white/48 hover:bg-white/[0.06] hover:text-white"
+            className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2.5 text-xs font-medium text-white/42 transition hover:bg-white/[0.045] hover:text-white/75"
           >
-            Keep going ↓
+            Load more <ChevronDown className="size-3.5" />
           </button>
         </div>
       ) : null}
