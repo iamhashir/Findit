@@ -27,20 +27,32 @@ export function SearchView({
   const urlQuery = searchParams.get("q") ?? "";
   const urlTopic = searchParams.get("topic");
   const [query, setQuery] = useState(urlQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(urlQuery.trim());
   const [topic, setTopic] = useState<string | null>(urlTopic);
   const sources = useQuery(api.sources.list, {});
   const normalized = query.trim();
+  const searchPending = normalized.length >= 2 && debouncedQuery !== normalized;
   const articles = useQuery(
     api.articles.search,
-    normalized.length >= 2
-      ? { query: normalized, topic: topic ?? undefined, limit: 24 }
+    normalized.length >= 2 && debouncedQuery.length >= 2
+      ? { query: debouncedQuery, topic: topic ?? undefined, limit: 24 }
       : "skip",
   ) as Article[] | undefined;
+  const visibleArticles = searchPending ? undefined : articles;
 
   useEffect(() => {
     setQuery(urlQuery);
+    setDebouncedQuery(urlQuery.trim());
     setTopic(urlTopic);
   }, [urlQuery, urlTopic]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedQuery(normalized);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [normalized]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -187,19 +199,19 @@ export function SearchView({
                 <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-white/34">Stories</h2>
                 <p className="mt-1 text-[11px] text-white/24">Results for “{normalized}”</p>
               </div>
-              {articles ? <span className="text-[11px] text-white/22">{articles.length}</span> : null}
+              {visibleArticles ? <span className="text-[11px] text-white/22">{visibleArticles.length}</span> : null}
             </div>
 
-            {articles === undefined ? (
+            {visibleArticles === undefined ? (
               <SearchSkeleton />
-            ) : articles.length === 0 ? (
+            ) : visibleArticles.length === 0 ? (
               <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.015] px-5 py-12 text-center">
                 <p className="text-sm font-medium text-white/55">No matching stories</p>
                 <p className="mt-1 text-xs text-white/26">Try a broader term or remove the topic filter.</p>
               </div>
             ) : (
               <div>
-                {articles.map((article) => (
+                {visibleArticles.map((article) => (
                   <ArticleCard
                     key={article._id}
                     article={article}
