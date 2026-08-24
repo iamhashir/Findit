@@ -34,8 +34,15 @@ export default defineSchema({
     content: v.optional(v.string()),
     canonicalUrl: v.optional(v.string()),
     scrapedAt: v.optional(v.number()),
+    score: v.optional(v.number()),
+    commentCount: v.optional(v.number()),
   })
     .index("by_url", ["url"])
     .index("by_source", ["sourceId"])
-    .index("by_published_at", ["publishedAt"]),
+    .index("by_published_at", ["publishedAt"])
+    .index("by_topic_and_published_at", ["topic", "publishedAt"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["topic"],
+    }),
 });
