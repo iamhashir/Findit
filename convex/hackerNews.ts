@@ -94,6 +94,8 @@ export const syncSource = internalAction({
           externalId: String(item.id),
           author: item.by?.slice(0, 300),
           topic: source.category,
+          score: item.score,
+          commentCount: item.descendants,
         });
 
         accepted += 1;
