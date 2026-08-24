@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "convex:dev": "convex dev"
+    "convex:dev": "convex dev",
+    "convex:seed": "convex run seed:seedSources"
   },
   "dependencies": {
     "convex": "1.45.0",
