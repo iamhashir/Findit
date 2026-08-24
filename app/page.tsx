@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { ArticleFeed } from "./article-feed";
 import { SourceFinder } from "./source-finder";
 import { SourceManager } from "./source-manager";
-import { SourcesList } from "./sources-list";
 
 type View = "home" | "finder" | "settings";
 type IconName = "home" | "search" | "settings" | "arrow";
@@ -59,8 +59,8 @@ function AppHeader({ view }: { view: View }) {
 function HomeView({ onOpenFinder }: { onOpenFinder: () => void }) {
   return (
     <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <h2 className="text-base font-semibold tracking-tight">Sources</h2>
+      <div className="mb-2 flex items-center justify-between gap-3 px-1">
+        <h2 className="text-base font-semibold tracking-tight">Feed</h2>
         <button
           type="button"
           onClick={onOpenFinder}
@@ -70,7 +70,7 @@ function HomeView({ onOpenFinder }: { onOpenFinder: () => void }) {
           <Icon name="arrow" className="size-3.5" />
         </button>
       </div>
-      <SourcesList />
+      <ArticleFeed />
     </section>
   );
 }
