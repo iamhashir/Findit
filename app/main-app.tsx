@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMemo, useState } from "react";
+import { useQuery } from "convex/react";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { ArticleFeed, type FeedMode } from "./article-feed";
@@ -20,16 +20,7 @@ type IconName = "home" | "search" | "bookmark" | "settings";
 export function MainApp({ view }: { view: MainView }) {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const ensureRecommended = useMutation(api.sources.ensureRecommended);
-  const allSources = useQuery(api.sources.listAll, {});
-  const initialized = useRef(false);
   const reading = useReadingState();
-
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    void ensureRecommended({});
-  }, [ensureRecommended]);
 
   function openArticle(article: Article) {
     reading.markRead(article._id);
@@ -37,8 +28,7 @@ export function MainApp({ view }: { view: MainView }) {
   }
 
   function openSource(sourceId: Id<"sources">) {
-    const source = allSources?.find((item) => item._id === sourceId);
-    router.push(`/source/${source?.slug ?? sourceId}`);
+    router.push(`/source/${sourceId}`);
   }
 
   const headerView: HeaderView = settingsOpen ? "settings" : view;
