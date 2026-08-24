@@ -4,38 +4,37 @@ import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
-const filters = ["All", "Engineering", "Community", "Web", "Infrastructure"];
-
 export function SourceFinder() {
   const sources = useQuery(api.sources.list, {});
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
+  const filters = useMemo(() => {
+    if (!sources) return ["All"];
+    return ["All", ...Array.from(new Set(sources.map((source) => source.category)))];
+  }, [sources]);
+
   const filteredSources = useMemo(() => {
     if (!sources) return [];
-
     const normalizedQuery = query.trim().toLowerCase();
 
     return sources.filter((source) => {
-      const matchesFilter =
-        activeFilter === "All" || source.category === activeFilter;
+      const matchesFilter = activeFilter === "All" || source.category === activeFilter;
       const matchesQuery =
         normalizedQuery.length === 0 ||
         source.name.toLowerCase().includes(normalizedQuery) ||
-        source.category.toLowerCase().includes(normalizedQuery) ||
-        source.kind.toLowerCase().includes(normalizedQuery);
-
+        source.category.toLowerCase().includes(normalizedQuery);
       return matchesFilter && matchesQuery;
     });
   }, [activeFilter, query, sources]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="relative">
         <svg
           aria-hidden="true"
           viewBox="0 0 24 24"
-          className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-white/40"
+          className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-white/35"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.8"
@@ -46,8 +45,8 @@ export function SourceFinder() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search sources, topics, formats..."
-          className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.055] pl-12 pr-4 text-[15px] text-white outline-none transition placeholder:text-white/30 focus:border-cyan-300/50 focus:bg-white/[0.075] focus:ring-4 focus:ring-cyan-300/5"
+          placeholder="Search"
+          className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-12 pr-4 text-[15px] text-white outline-none placeholder:text-white/25 focus:border-cyan-300/40"
         />
       </div>
 
@@ -57,10 +56,10 @@ export function SourceFinder() {
             key={filter}
             type="button"
             onClick={() => setActiveFilter(filter)}
-            className={`shrink-0 rounded-full border px-4 py-2 text-sm transition ${
+            className={`shrink-0 rounded-full border px-3.5 py-2 text-xs transition ${
               activeFilter === filter
-                ? "border-cyan-300/40 bg-cyan-300 text-zinc-950 shadow-[0_0_30px_rgba(103,232,249,0.18)]"
-                : "border-white/10 bg-white/[0.045] text-white/60 hover:bg-white/[0.08] hover:text-white"
+                ? "border-cyan-300/40 bg-cyan-300 text-zinc-950"
+                : "border-white/10 bg-white/[0.04] text-white/50"
             }`}
           >
             {filter}
@@ -71,29 +70,12 @@ export function SourceFinder() {
       {sources === undefined ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {[0, 1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="h-32 animate-pulse rounded-3xl border border-white/8 bg-white/[0.035]"
-            />
+            <div key={item} className="h-24 animate-pulse rounded-2xl border border-white/8 bg-white/[0.03]" />
           ))}
         </div>
       ) : filteredSources.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-12 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/40">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="size-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-          </div>
-          <p className="mt-4 text-sm font-medium text-white/70">No matches found</p>
-          <p className="mt-1 text-sm text-white/35">Try a different source or topic.</p>
+        <div className="rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/35">
+          No matches
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -103,35 +85,17 @@ export function SourceFinder() {
               href={source.siteUrl}
               target="_blank"
               rel="noreferrer"
-              className="group rounded-3xl border border-white/10 bg-white/[0.045] p-5 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-white/[0.07]"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan-300/25 hover:bg-white/[0.065]"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/[0.03] text-sm font-semibold text-cyan-200">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-xs font-semibold text-cyan-100/75">
                   {source.name.slice(0, 2).toUpperCase()}
                 </div>
-                <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                  {source.kind}
-                </span>
-              </div>
-              <h3 className="mt-5 text-base font-semibold tracking-tight text-white">
-                {source.name}
-              </h3>
-              <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                <span className="text-white/40">{source.category}</span>
-                <span className="flex items-center gap-1 text-cyan-200/70 transition group-hover:text-cyan-200">
-                  Open
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="size-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
-                    <path d="M7 17 17 7" />
-                    <path d="M8 7h9v9" />
-                  </svg>
-                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-medium text-white/85">{source.name}</h3>
+                  <p className="mt-0.5 truncate text-xs text-white/30">{source.category}</p>
+                </div>
+                <span className="text-[10px] uppercase tracking-[0.12em] text-white/25">{source.kind}</span>
               </div>
             </a>
           ))}
