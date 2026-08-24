@@ -6,7 +6,8 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 
 ### Added
 - Added editable source management in Settings.
-- Added the initial recommended technology and AI source set.
+- Expanded the curated source catalog to 50 technology, AI, research, engineering, infrastructure, security, language, publication, and community sources.
+- Added source quality tiers, priority, descriptions, and coverage tags for curated sources.
 - Added source types for RSS, API, and Web ingestion.
 - Added Cheerio + Mozilla Readability article scraping in Convex.
 - Added dedicated RSS and Atom feed parsing for RSS sources.
@@ -31,7 +32,9 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 
 ### Changed
 - Source synchronization now routes RSS sources through their configured feed URLs, Hacker News through its API, and keeps HTML scraping as the fallback for other source types.
-- Manual Settings sync and scheduled hourly sync now share the same ingestion router.
+- Manual and scheduled ingestion can now process the full curated catalog in bounded concurrent batches instead of stopping at the first 10 sources.
+- Settings source management now supports source search, category filtering, quality labels, core-source badges, and full-catalog sync.
+- Dedicated source pages now use a denser publication-style view with source profiles, coverage tags, quality tier, indexed/latest metrics, date grouping, author metadata, and compact story rows.
 - Primary mobile navigation is now Home, Search, and Saved; Settings moved to the header.
 - Home now clusters matching multi-source coverage while keeping single-source stories as normal feed cards.
 - Trending gives a bounded boost to stories independently covered by multiple sources.
