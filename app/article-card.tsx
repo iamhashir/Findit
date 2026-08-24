@@ -9,12 +9,14 @@ export function ArticleCard({
   read,
   onOpen,
   onToggleSaved,
+  onOpenSource,
 }: {
   article: Article;
   saved: boolean;
   read: boolean;
   onOpen: (article: Article) => void;
   onToggleSaved: (id: Id<"articles">) => void;
+  onOpenSource?: (sourceId: Id<"sources">) => void;
 }) {
   return (
     <article
@@ -25,7 +27,17 @@ export function ArticleCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-white/40">
-            <span className="font-medium text-white/55">{article.sourceName}</span>
+            {onOpenSource ? (
+              <button
+                type="button"
+                onClick={() => onOpenSource(article.sourceId)}
+                className="font-medium text-white/55 transition hover:text-cyan-200"
+              >
+                {article.sourceName}
+              </button>
+            ) : (
+              <span className="font-medium text-white/55">{article.sourceName}</span>
+            )}
             {article.topic && (
               <>
                 <span>·</span>
