@@ -3,9 +3,13 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 
-const convexUrl =
-  process.env.NEXT_PUBLIC_CONVEX_URL ??
-  "https://fabulous-lyrebird-465.eu-west-1.convex.cloud";
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+
+if (!convexUrl) {
+  throw new Error(
+    "NEXT_PUBLIC_CONVEX_URL is missing. Copy .env.example to .env.local and set your Convex deployment URL.",
+  );
+}
 
 const convex = new ConvexReactClient(convexUrl);
 

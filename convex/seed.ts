@@ -1,4 +1,5 @@
-import { internalMutationGeneric as internalMutation } from "convex/server";
+import { v } from "convex/values";
+import { internalMutation } from "./_generated/server";
 
 const initialSources = [
   {
@@ -37,6 +38,10 @@ const initialSources = [
 
 export const seedSources = internalMutation({
   args: {},
+  returns: v.object({
+    added: v.number(),
+    total: v.number(),
+  }),
   handler: async (ctx) => {
     let added = 0;
 
@@ -46,7 +51,9 @@ export const seedSources = internalMutation({
         .withIndex("by_slug", (q) => q.eq("slug", source.slug))
         .unique();
 
-      if (existing) continue;
+      if (existing) {
+        continue;
+      }
 
       await ctx.db.insert("sources", {
         ...source,
