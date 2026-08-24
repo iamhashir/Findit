@@ -8,6 +8,7 @@ import { internalAction } from "./_generated/server";
 const DEFAULT_API_URL = "https://hacker-news.firebaseio.com/v0/";
 const USER_AGENT =
   "FinditBot/0.1 (+https://findit-gamma-steel.vercel.app; tech-news-indexer)";
+const SUMMARY_LIMIT = 600;
 
 const syncResultValidator = v.object({
   sourceId: v.id("sources"),
@@ -16,8 +17,14 @@ const syncResultValidator = v.object({
   processed: v.number(),
   created: v.number(),
   updated: v.number(),
+  unchanged: v.number(),
   skipped: v.number(),
   needsBrowser: v.boolean(),
+  qualitySampleSize: v.number(),
+  latestArticleAt: v.optional(v.number()),
+  missingDescriptionRate: v.number(),
+  missingAuthorRate: v.number(),
+  missingImageRate: v.number(),
 });
 
 type HackerNewsItem = {
@@ -37,38 +44,30 @@ type HackerNewsItem = {
 export const syncSource = internalAction({
   args: {
     sourceId: v.id("sources"),
+    sourceName: v.string(),
+    apiUrl: v.optional(v.string()),
+    category: v.string(),
     maxArticles: v.optional(v.number()),
   },
   returns: syncResultValidator,
   handler: async (ctx, args) => {
-    const source = await ctx.runQuery(internal.sources.getByIdInternal, {
-      id: args.sourceId,
-    });
-    if (!source) throw new Error("Source not found.");
-    if (source.kind !== "api") throw new Error("Source is not configured as API.");
-
-    const apiBase = ensureTrailingSlash(source.apiUrl?.trim() || DEFAULT_API_URL);
+    const apiBase = ensureTrailingSlash(args.apiUrl?.trim() || DEFAULT_API_URL);
     if (!apiBase.includes("hacker-news.firebaseio.com")) {
       throw new Error("Unsupported API source. Hacker News is currently the only API adapter.");
     }
 
-    const limit = bounded(args.maxArticles ?? 8, 1, 25);
+    const limit = bounded(args.maxArticles ?? 6, 1, 15);
     const ids = await fetchJson<number[]>(`${apiBase}topstories.json`);
     const candidateIds = ids.slice(0, Math.min(ids.length, limit * 3));
-
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
+    const entries = [];
     let processed = 0;
-    let accepted = 0;
+    let skipped = 0;
 
     for (const id of candidateIds) {
-      if (accepted >= limit) break;
-
+      if (entries.length >= limit) break;
       try {
         const item = await fetchJson<HackerNewsItem | null>(`${apiBase}item/${id}.json`);
         processed += 1;
-
         if (
           !item ||
           item.deleted ||
@@ -81,40 +80,47 @@ export const syncSource = internalAction({
         }
 
         const articleUrl = normalizeUrl(item.url) ?? `https://news.ycombinator.com/item?id=${item.id}`;
-        const description = item.text ? stripMarkup(item.text).slice(0, 2_000) : undefined;
-
-        const stored = await ctx.runMutation(internal.articles.upsertScraped, {
-          sourceId: source._id,
-          sourceName: source.name,
+        const description = item.text
+          ? stripMarkup(item.text).slice(0, SUMMARY_LIMIT)
+          : undefined;
+        entries.push({
           title: cleanText(item.title).slice(0, 500),
           url: articleUrl,
           canonicalUrl: articleUrl,
           publishedAt: typeof item.time === "number" ? item.time * 1_000 : Date.now(),
           description: description || undefined,
           externalId: String(item.id),
-          author: item.by?.slice(0, 300),
-          topic: source.category,
+          author: item.by?.slice(0, 200),
+          topic: args.category,
           score: item.score,
           commentCount: item.descendants,
         });
-
-        accepted += 1;
-        if (stored.created) created += 1;
-        else updated += 1;
       } catch {
         skipped += 1;
       }
     }
 
+    const stored = await ctx.runMutation(internal.articles.ingestBatch, {
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
+      entries,
+    });
+
     return {
-      sourceId: source._id,
-      sourceName: source.name,
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
       discovered: candidateIds.length,
       processed,
-      created,
-      updated,
+      created: stored.created,
+      updated: stored.updated,
+      unchanged: stored.unchanged,
       skipped,
       needsBrowser: false,
+      qualitySampleSize: stored.qualitySampleSize,
+      ...(stored.latestArticleAt ? { latestArticleAt: stored.latestArticleAt } : {}),
+      missingDescriptionRate: stored.missingDescriptionRate,
+      missingAuthorRate: stored.missingAuthorRate,
+      missingImageRate: stored.missingImageRate,
     };
   },
 });
@@ -132,7 +138,6 @@ async function fetchJson<T>(url: string): Promise<T> {
         accept: "application/json",
       },
     });
-
     if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
     return (await response.json()) as T;
   } finally {
