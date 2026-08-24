@@ -4,16 +4,42 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
+import { anyApi, type FunctionReference } from "convex/server";
+import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { ArticleCard } from "./article-card";
 import type { Article } from "./article-types";
 import { useReadingState } from "./use-reading-state";
 
+type RouteSource = {
+  _id: Id<"sources">;
+  _creationTime: number;
+  name: string;
+  slug: string;
+  siteUrl: string;
+  feedUrl?: string;
+  apiUrl?: string;
+  kind: "rss" | "api" | "web";
+  category: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt?: number;
+  recommended?: boolean;
+  rank?: number;
+};
+
+const getSourceRoute = anyApi.routes.getSource as FunctionReference<
+  "query",
+  "public",
+  { key: string },
+  RouteSource | null
+>;
+
 export function SourceRouteView({ sourceKey }: { sourceKey: string }) {
   const router = useRouter();
   const reading = useReadingState();
   const [shared, setShared] = useState(false);
-  const source = useQuery(api.routes.getSource, { key: sourceKey });
+  const source = useQuery(getSourceRoute, { key: sourceKey });
   const result = useQuery(
     api.articles.listBySource,
     source ? { sourceId: source._id, limit: 60 } : "skip",
