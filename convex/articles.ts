@@ -155,9 +155,9 @@ export const listTrending = query({
           .order("desc")
           .take(sampleSize);
 
-    const now = Date.now();
+    const referenceTime = recent[0]?.publishedAt ?? 0;
     return recent
-      .sort((a, b) => trendScore(b, now) - trendScore(a, now))
+      .sort((a, b) => trendScore(b, referenceTime) - trendScore(a, referenceTime))
       .slice(0, limit)
       .map(toPreview);
   },
@@ -188,11 +188,11 @@ export const listClusters = query({
           .order("desc")
           .take(sampleSize);
 
-    const now = Date.now();
+    const referenceTime = recent[0]?.publishedAt ?? 0;
     const clusters = clusterArticles(recent);
     clusters.sort((a, b) => {
       if (args.mode === "trending") {
-        return clusterTrendScore(b, now) - clusterTrendScore(a, now);
+        return clusterTrendScore(b, referenceTime) - clusterTrendScore(a, referenceTime);
       }
       return b.latestAt - a.latestAt;
     });
@@ -317,6 +317,7 @@ export const ingestBatch = internalMutation({
   returns: ingestResultValidator,
   handler: async (ctx, args) => {
     const entries = args.entries.slice(0, 15).map(normalizeEntry);
+    const now = Date.now();
     let created = 0;
     let updated = 0;
     let unchanged = 0;
@@ -326,7 +327,6 @@ export const ingestBatch = internalMutation({
         .query("articles")
         .withIndex("by_url", (q) => q.eq("url", entry.url))
         .unique();
-      const now = Date.now();
 
       if (existing) {
         const next = {
@@ -736,7 +736,7 @@ function choosePrimary(articles: Doc<"articles">[]) {
   return [...articles].sort((a, b) => {
     const qualityDifference = primaryQuality(b) - primaryQuality(a);
     if (qualityDifference !== 0) return qualityDifference;
-    return a.publishedAt - b.publishedAt;
+    return b.publishedAt - a.publishedAt;
   })[0];
 }
 
@@ -823,17 +823,19 @@ function titleSimilarity(a: Set<string>, b: Set<string>) {
   return 0;
 }
 
-function clusterTrendScore(cluster: StoryCluster, now: number) {
-  const strongestArticle = Math.max(...cluster.articles.map((article) => trendScore(article, now)));
+function clusterTrendScore(cluster: StoryCluster, referenceTime: number) {
+  const strongestArticle = Math.max(
+    ...cluster.articles.map((article) => trendScore(article, referenceTime)),
+  );
   const coverageBonus = Math.min(24, Math.max(0, cluster.sourceCount - 1) * 8);
   return strongestArticle + coverageBonus;
 }
 
 function trendScore(
   article: { publishedAt: number; score?: number; commentCount?: number },
-  now: number,
+  referenceTime: number,
 ) {
-  const ageHours = Math.max(0, (now - article.publishedAt) / 3_600_000);
+  const ageHours = Math.max(0, (referenceTime - article.publishedAt) / 3_600_000);
   const freshness = Math.max(0, 72 - ageHours);
   const points = Math.log2((article.score ?? 0) + 1) * 10;
   const discussion = Math.log2((article.commentCount ?? 0) + 1) * 5;
