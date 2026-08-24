@@ -10,7 +10,10 @@
     "convex:seed": "convex run seed:seedSources --push"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "cheerio": "^1.1.2",
     "convex": "1.45.0",
+    "linkedom": "^0.18.12",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
