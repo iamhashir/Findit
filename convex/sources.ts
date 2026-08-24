@@ -77,11 +77,13 @@ export const ensureRecommended = mutation({
         .unique();
 
       if (existing) {
-        await ctx.db.patch(existing._id, {
-          recommended: true,
-          rank: source.rank,
-          updatedAt: now,
-        });
+        if (existing.recommended !== true || existing.rank !== source.rank) {
+          await ctx.db.patch(existing._id, {
+            recommended: true,
+            rank: source.rank,
+            updatedAt: now,
+          });
+        }
         continue;
       }
 
