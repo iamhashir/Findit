@@ -1,17 +1,32 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
-import { ArticleFeed, type FeedMode } from "./article-feed";
+import type { FeedMode } from "./article-feed";
 import type { Article } from "./article-types";
-import { SavedView } from "./saved-view";
-import { SearchView } from "./search-view";
-import { SourceManager } from "./source-manager";
 import { useReadingState } from "./use-reading-state";
+
+const ArticleFeed = dynamic(
+  () => import("./article-feed").then((module) => module.ArticleFeed),
+  { loading: FeedLoading },
+);
+const SearchView = dynamic(
+  () => import("./search-view").then((module) => module.SearchView),
+  { loading: LazyViewLoading },
+);
+const SavedView = dynamic(
+  () => import("./saved-view").then((module) => module.SavedView),
+  { loading: LazyViewLoading },
+);
+const SourceManager = dynamic(
+  () => import("./source-manager").then((module) => module.SourceManager),
+  { loading: LazyViewLoading },
+);
 
 export type MainView = "home" | "search" | "saved";
 type HeaderView = MainView | "settings";
@@ -288,6 +303,26 @@ function BottomNav({ activeView, savedCount }: { activeView: MainView; savedCoun
         })}
       </div>
     </nav>
+  );
+}
+
+function FeedLoading() {
+  return (
+    <div className="space-y-3">
+      <div className="h-64 animate-pulse rounded-[1.7rem] border border-white/8 bg-white/[0.03]" />
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
+      ))}
+    </div>
+  );
+}
+
+function LazyViewLoading() {
+  return (
+    <div className="space-y-4 py-2">
+      <div className="h-20 animate-pulse rounded-[1.5rem] border border-white/8 bg-white/[0.025]" />
+      <div className="h-48 animate-pulse rounded-[1.5rem] border border-white/8 bg-white/[0.02]" />
+    </div>
   );
 }
 
