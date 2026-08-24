@@ -115,7 +115,6 @@ function syncCadenceMs(source: Doc<"sources">) {
 function buildHealthRows(
   sources: Doc<"sources">[],
   healthRows: Doc<"sourceHealth">[],
-  now: number,
 ) {
   const healthBySource = new Map(healthRows.map((row) => [row.sourceId, row]));
 
@@ -126,25 +125,18 @@ function buildHealthRows(
     if (!source.enabled) status = "disabled";
     else if (health) {
       if (health.consecutiveFailures >= 2) status = "failing";
-      else if (
-        health.consecutiveFailures === 1 ||
-        health.lastNeedsBrowser ||
-        now - health.lastAttemptAt > syncCadenceMs(source) * 2
-      ) {
-        status = "degraded";
-      } else {
-        status = "healthy";
-      }
+      else if (health.consecutiveFailures === 1 || health.lastNeedsBrowser) status = "degraded";
+      else status = "healthy";
     }
 
     const completedWrites = health ? health.totalCreated + health.totalUpdated : 0;
     return {
       sourceId: source._id,
       status,
-      lastAttemptAt: health?.lastAttemptAt,
-      lastSuccessAt: health?.lastSuccessAt,
-      lastFailureAt: health?.lastFailureAt,
-      lastError: health?.lastError,
+      ...(health?.lastAttemptAt !== undefined ? { lastAttemptAt: health.lastAttemptAt } : {}),
+      ...(health?.lastSuccessAt !== undefined ? { lastSuccessAt: health.lastSuccessAt } : {}),
+      ...(health?.lastFailureAt !== undefined ? { lastFailureAt: health.lastFailureAt } : {}),
+      ...(health?.lastError ? { lastError: health.lastError } : {}),
       consecutiveFailures: health?.consecutiveFailures ?? 0,
       totalRuns: health?.totalRuns ?? 0,
       successRate: health ? ratio(health.successfulRuns, health.totalRuns) : 0,
@@ -158,7 +150,7 @@ function buildHealthRows(
       lastDurationMs: health?.lastDurationMs ?? 0,
       lastNeedsBrowser: health?.lastNeedsBrowser ?? false,
       articleSampleSize: health?.qualitySampleSize ?? 0,
-      latestArticleAt: health?.latestArticleAt,
+      ...(health?.latestArticleAt !== undefined ? { latestArticleAt: health.latestArticleAt } : {}),
       missingDescriptionRate: health?.missingDescriptionRate ?? 0,
       missingAuthorRate: health?.missingAuthorRate ?? 0,
       missingImageRate: health?.missingImageRate ?? 0,
@@ -199,10 +191,7 @@ export const sourceDashboard = query({
       ctx.db.query("sourceHealth").take(100),
     ]);
     const sorted = sortSources(sources);
-    return {
-      sources: sorted,
-      health: buildHealthRows(sorted, healthRows, Date.now()),
-    };
+    return { sources: sorted, health: buildHealthRows(sorted, healthRows) };
   },
 });
 
@@ -214,24 +203,20 @@ export const healthOverview = query({
       ctx.db.query("sources").take(100),
       ctx.db.query("sourceHealth").take(100),
     ]);
-    return buildHealthRows(sources, healthRows, Date.now());
+    return buildHealthRows(sources, healthRows);
   },
 });
 
 export const getById = query({
   args: { id: v.id("sources") },
   returns: v.union(sourceValidator, v.null()),
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
+  handler: async (ctx, args) => await ctx.db.get(args.id),
 });
 
 export const getByIdInternal = internalQuery({
   args: { id: v.id("sources") },
   returns: v.union(sourceValidator, v.null()),
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
+  handler: async (ctx, args) => await ctx.db.get(args.id),
 });
 
 export const listEnabledInternal = internalQuery({
@@ -248,10 +233,7 @@ export const listEnabledInternal = internalQuery({
 });
 
 export const listDueEnabledInternal = internalQuery({
-  args: {
-    limit: v.optional(v.number()),
-    now: v.number(),
-  },
+  args: { limit: v.optional(v.number()), now: v.number() },
   returns: v.array(sourceValidator),
   handler: async (ctx, args) => {
     const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 20), 30));
@@ -304,12 +286,13 @@ export const recordSyncHealth = internalMutation({
       .query("sourceHealth")
       .withIndex("by_source", (q) => q.eq("sourceId", args.sourceId))
       .unique();
+
     const values = {
       sourceId: args.sourceId,
       lastAttemptAt: args.attemptedAt,
-      lastSuccessAt: args.success ? args.attemptedAt : existing?.lastSuccessAt,
-      lastFailureAt: args.success ? existing?.lastFailureAt : args.attemptedAt,
-      lastError: args.success ? undefined : args.error?.slice(0, 1_000),
+      lastSuccessAt: args.success ? args.attemptedAt : (existing?.lastSuccessAt ?? 0),
+      lastFailureAt: args.success ? (existing?.lastFailureAt ?? 0) : args.attemptedAt,
+      lastError: args.success ? "" : (args.error?.slice(0, 1_000) ?? "Sync failed"),
       consecutiveFailures: args.success ? 0 : (existing?.consecutiveFailures ?? 0) + 1,
       totalRuns: (existing?.totalRuns ?? 0) + 1,
       successfulRuns: (existing?.successfulRuns ?? 0) + (args.success ? 1 : 0),
@@ -323,11 +306,11 @@ export const recordSyncHealth = internalMutation({
       lastSkipped: args.skipped,
       lastDurationMs: Math.max(0, Math.floor(args.durationMs)),
       lastNeedsBrowser: args.needsBrowser,
-      qualitySampleSize: args.qualitySampleSize ?? existing?.qualitySampleSize,
-      latestArticleAt: args.latestArticleAt ?? existing?.latestArticleAt,
-      missingDescriptionRate: args.missingDescriptionRate ?? existing?.missingDescriptionRate,
-      missingAuthorRate: args.missingAuthorRate ?? existing?.missingAuthorRate,
-      missingImageRate: args.missingImageRate ?? existing?.missingImageRate,
+      qualitySampleSize: args.qualitySampleSize ?? existing?.qualitySampleSize ?? 0,
+      latestArticleAt: args.latestArticleAt ?? existing?.latestArticleAt ?? 0,
+      missingDescriptionRate: args.missingDescriptionRate ?? existing?.missingDescriptionRate ?? 0,
+      missingAuthorRate: args.missingAuthorRate ?? existing?.missingAuthorRate ?? 0,
+      missingImageRate: args.missingImageRate ?? existing?.missingImageRate ?? 0,
     };
 
     if (existing) await ctx.db.patch(existing._id, values);
@@ -379,9 +362,7 @@ export const ensureRecommended = mutation({
           ("feedUrl" in source && existing.feedUrl !== source.feedUrl) ||
           ("apiUrl" in source && existing.apiUrl !== source.apiUrl);
 
-        if (needsUpdate) {
-          await ctx.db.patch(existing._id, { ...curatedFields, updatedAt: now });
-        }
+        if (needsUpdate) await ctx.db.patch(existing._id, { ...curatedFields, updatedAt: now });
         continue;
       }
 
@@ -459,16 +440,10 @@ export const update = mutation({
 });
 
 export const setEnabled = mutation({
-  args: {
-    id: v.id("sources"),
-    enabled: v.boolean(),
-  },
+  args: { id: v.id("sources"), enabled: v.boolean() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, {
-      enabled: args.enabled,
-      updatedAt: Date.now(),
-    });
+    await ctx.db.patch(args.id, { enabled: args.enabled, updatedAt: Date.now() });
     return null;
   },
 });
