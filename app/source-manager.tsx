@@ -3,8 +3,18 @@
 import { useMemo, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
+import {
+  ChevronDown,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
+import { SourceAvatar } from "./source-avatar";
 
 type SourceKind = "rss" | "api" | "web";
 type SourceQuality = "primary" | "expert" | "publication" | "community";
@@ -246,93 +256,131 @@ export function SourceManager() {
   }
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-4 sm:px-5">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-base font-semibold tracking-tight">Sources</h2>
-          <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-[11px] text-white/45">
-            {sources?.length ?? "—"}
-          </span>
+    <section>
+      <div className="flex items-center justify-between gap-3 pb-4">
+        <div>
+          <p className="text-sm font-semibold text-white/80">{sources ? `${sources.length} sources` : "Sources"}</p>
+          <p className="mt-0.5 text-xs text-white/30">{sources ? `${visibleSources.length} shown` : "Loading…"}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => void syncEnabled()}
             disabled={syncingAll}
-            className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-40"
+            className="flex h-9 items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-xs font-medium text-white/50 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-35"
           >
-            {syncingAll ? "Syncing…" : "Sync due"}
+            <RefreshCw className={`size-3.5 ${syncingAll ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Sync due</span>
           </button>
           <button
             type="button"
             onClick={startAdd}
-            className="rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-cyan-100"
+            className="flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-xs font-semibold text-zinc-950 transition hover:bg-zinc-200"
           >
-            Add
+            <Plus className="size-3.5" /> Add
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-px border-b border-white/[0.07] bg-white/[0.07] sm:grid-cols-4">
+      <div className="grid grid-cols-4 overflow-hidden rounded-xl border border-white/[0.075] bg-white/[0.06]">
         <HealthStat label="Healthy" value={healthRows ? healthCounts.healthy : null} />
         <HealthStat label="Attention" value={healthRows ? healthCounts.attention : null} />
         <HealthStat label="Failing" value={healthRows ? healthCounts.failing : null} />
         <HealthStat label="Unchecked" value={healthRows ? healthCounts.unchecked : null} />
       </div>
 
-      {(status || error) && (
-        <div className={`border-b border-white/[0.07] px-4 py-2.5 text-xs sm:px-5 ${error ? "text-red-300" : "text-white/45"}`}>
+      {(status || error) ? (
+        <div className={`mt-3 rounded-lg border px-3 py-2.5 text-xs ${error ? "border-red-400/15 bg-red-400/[0.04] text-red-200/70" : "border-white/[0.07] bg-white/[0.025] text-white/43"}`}>
           {error || status}
         </div>
-      )}
+      ) : null}
 
-      {editingId && (
-        <div className="border-b border-white/[0.07] bg-black/20 p-4 sm:p-5">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Name" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
-            <Field label="Category" value={draft.category} onChange={(category) => setDraft({ ...draft, category })} />
-            <Field label="Website" value={draft.siteUrl} onChange={(siteUrl) => setDraft({ ...draft, siteUrl })} wide />
-            <label className="grid gap-1.5">
-              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">Type</span>
-              <select
-                value={draft.kind}
-                onChange={(event) => setDraft({ ...draft, kind: event.target.value as SourceKind })}
-                className="h-11 rounded-xl border border-white/10 bg-[#0d0f11] px-3 text-sm text-white outline-none focus:border-cyan-300/40"
-              >
-                <option value="rss">RSS</option>
-                <option value="api">API</option>
-                <option value="web">Web</option>
-              </select>
-            </label>
-            {draft.kind === "rss" && <Field label="RSS URL" value={draft.feedUrl} onChange={(feedUrl) => setDraft({ ...draft, feedUrl })} />}
-            {draft.kind === "api" && <Field label="API URL" value={draft.apiUrl} onChange={(apiUrl) => setDraft({ ...draft, apiUrl })} />}
-          </div>
+      <AnimatePresence initial={false}>
+        {editingId ? (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm font-semibold text-white/72">{editingId === "new" ? "Add source" : "Edit source"}</p>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                  aria-label="Close source editor"
+                  className="flex size-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.055] hover:text-white"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
 
-          {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Name" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
+                <Field label="Category" value={draft.category} onChange={(category) => setDraft({ ...draft, category })} />
+                <Field label="Website" value={draft.siteUrl} onChange={(siteUrl) => setDraft({ ...draft, siteUrl })} wide />
+                <label className="grid gap-1.5">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/28">Type</span>
+                  <select
+                    value={draft.kind}
+                    onChange={(event) => setDraft({ ...draft, kind: event.target.value as SourceKind })}
+                    className="h-10 rounded-lg border border-white/[0.09] bg-[#151515] px-3 text-sm text-white/72 outline-none focus:border-white/25"
+                  >
+                    <option value="rss">RSS</option>
+                    <option value="api">API</option>
+                    <option value="web">Web</option>
+                  </select>
+                </label>
+                {draft.kind === "rss" ? <Field label="RSS URL" value={draft.feedUrl} onChange={(feedUrl) => setDraft({ ...draft, feedUrl })} /> : null}
+                {draft.kind === "api" ? <Field label="API URL" value={draft.apiUrl} onChange={(apiUrl) => setDraft({ ...draft, apiUrl })} /> : null}
+              </div>
 
-          <div className="mt-4 flex gap-2">
-            <button type="button" onClick={() => void save()} disabled={saving} className="rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-semibold text-zinc-950 disabled:opacity-50">
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button type="button" onClick={() => setEditingId(null)} className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-medium text-white/55">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving}
+                  className="rounded-lg bg-white px-4 py-2.5 text-xs font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                  className="rounded-lg border border-white/[0.08] px-4 py-2.5 text-xs font-medium text-white/45 transition hover:bg-white/[0.05] hover:text-white/70"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
-      <div className="grid gap-2 border-b border-white/[0.07] bg-black/10 p-3 sm:grid-cols-[1fr_auto_auto] sm:px-5">
-        <input
-          value={sourceQuery}
-          onChange={(event) => setSourceQuery(event.target.value)}
-          placeholder="Search sources, categories, tags"
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.035] px-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-300/35"
-        />
-        <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="h-10 rounded-xl border border-white/10 bg-[#0d0f11] px-3 text-xs text-white/65 outline-none">
+      <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/28" />
+          <input
+            value={sourceQuery}
+            onChange={(event) => setSourceQuery(event.target.value)}
+            placeholder="Search sources"
+            className="h-10 w-full rounded-lg border border-white/[0.08] bg-white/[0.025] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-white/20"
+          />
+        </label>
+        <select
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          className="h-10 rounded-lg border border-white/[0.08] bg-[#151515] px-3 text-xs text-white/55 outline-none"
+        >
           <option value="All">All categories</option>
           {categories.map((category) => <option key={category} value={category}>{category}</option>)}
         </select>
-        <select value={healthFilter} onChange={(event) => setHealthFilter(event.target.value)} className="h-10 rounded-xl border border-white/10 bg-[#0d0f11] px-3 text-xs text-white/65 outline-none">
+        <select
+          value={healthFilter}
+          onChange={(event) => setHealthFilter(event.target.value)}
+          className="h-10 rounded-lg border border-white/[0.08] bg-[#151515] px-3 text-xs text-white/55 outline-none"
+        >
           <option value="All">All health</option>
           <option value="healthy">Healthy</option>
           <option value="degraded">Degraded</option>
@@ -342,55 +390,95 @@ export function SourceManager() {
         </select>
       </div>
 
-      <div className="divide-y divide-white/[0.06]">
+      <div className="mt-3 divide-y divide-white/[0.06] border-y border-white/[0.06]">
         {sources === undefined
-          ? [0, 1, 2, 3, 4].map((item) => <div key={item} className="h-[82px] animate-pulse bg-white/[0.02]" />)
+          ? [0, 1, 2, 3, 4].map((item) => <div key={item} className="h-[76px] animate-pulse bg-white/[0.012]" />)
           : visibleSources.map((source) => {
               const health = healthBySource.get(source._id);
               const expanded = expandedHealthId === source._id;
+              const syncPending = syncingId === source._id;
+
               return (
                 <div key={source._id}>
-                  <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={source.enabled}
-                      onClick={() => void setEnabled({ id: source._id, enabled: !source.enabled })}
-                      className={`relative h-6 w-10 shrink-0 rounded-full transition ${source.enabled ? "bg-cyan-300" : "bg-white/10"}`}
-                    >
-                      <span className={`absolute top-1 size-4 rounded-full transition ${source.enabled ? "left-5 bg-zinc-950" : "left-1 bg-white/50"}`} />
-                    </button>
+                  <div className="group flex items-center gap-3 py-3">
+                    <SourceAvatar url={source.siteUrl} name={source.name} size="md" />
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="truncate text-sm font-medium text-white/80">{source.name}</p>
                         <HealthDot status={health?.status ?? (source.enabled ? "unknown" : "disabled")} />
-                        <p className="truncate text-sm font-medium text-white/85">{source.name}</p>
-                        {source.quality ? <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-white/38">{qualityLabel(source.quality)}</span> : null}
-                        {source.priority === 1 ? <span className="shrink-0 rounded-full border border-cyan-300/15 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-cyan-100/55">Core</span> : null}
+                        {source.priority === 1 ? <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.08em] text-white/35">Core</span> : null}
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-white/30">
+                      <p className="mt-0.5 truncate text-[11px] text-white/28">
                         {source.category} · {source.kind.toUpperCase()}
-                        {health?.lastAttemptAt ? ` · sync ${relativeTime(health.lastAttemptAt)}` : " · not checked"}
-                        {health ? ` · +${health.lastCreated}/${health.lastUpdated} changed` : ""}
+                        {health?.lastAttemptAt ? ` · ${relativeTime(health.lastAttemptAt)}` : " · not checked"}
                       </p>
                     </div>
 
-                    <button type="button" onClick={() => setExpandedHealthId(expanded ? null : source._id)} className="rounded-lg px-2.5 py-2 text-xs font-medium text-white/45 transition hover:bg-white/[0.06] hover:text-white">
-                      {expanded ? "Hide" : "Audit"}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-label={`${source.enabled ? "Disable" : "Enable"} ${source.name}`}
+                      aria-checked={source.enabled}
+                      onClick={() => void setEnabled({ id: source._id, enabled: !source.enabled })}
+                      className={`relative h-6 w-10 shrink-0 rounded-full transition ${source.enabled ? "bg-white" : "bg-white/10"}`}
+                    >
+                      <span className={`absolute top-1 size-4 rounded-full transition-all ${source.enabled ? "left-5 bg-zinc-950" : "left-1 bg-white/45"}`} />
                     </button>
-                    <button type="button" onClick={() => void syncOne(source)} disabled={syncingId === source._id || !source.enabled} className="rounded-lg px-2.5 py-2 text-xs font-medium text-white/45 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-30">
-                      {syncingId === source._id ? "…" : "Sync"}
-                    </button>
-                    <button type="button" onClick={() => startEdit(source)} className="hidden rounded-lg px-2.5 py-2 text-xs font-medium text-white/45 transition hover:bg-white/[0.06] hover:text-white sm:block">
-                      Edit
-                    </button>
+
+                    <div className="flex items-center gap-0.5 sm:opacity-55 sm:transition sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => void syncOne(source)}
+                        disabled={syncPending || !source.enabled}
+                        title="Sync source"
+                        aria-label={`Sync ${source.name}`}
+                        className="flex size-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.055] hover:text-white disabled:opacity-25"
+                      >
+                        <RefreshCw className={`size-3.5 ${syncPending ? "animate-spin" : ""}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(source)}
+                        title="Edit source"
+                        aria-label={`Edit ${source.name}`}
+                        className="flex size-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.055] hover:text-white"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHealthId(expanded ? null : source._id)}
+                        title="Source audit"
+                        aria-label={`${expanded ? "Hide" : "Show"} audit for ${source.name}`}
+                        aria-expanded={expanded}
+                        className="flex size-8 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.055] hover:text-white"
+                      >
+                        <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                          <ChevronDown className="size-3.5" />
+                        </motion.span>
+                      </button>
+                    </div>
                   </div>
 
-                  {expanded ? <HealthAudit health={health} source={source} /> : null}
+                  <AnimatePresence initial={false}>
+                    {expanded ? (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <HealthAudit health={health} source={source} />
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
               );
             })}
-        {sources !== undefined && visibleSources.length === 0 ? <div className="px-5 py-12 text-center text-sm text-white/35">No sources match these filters.</div> : null}
+        {sources !== undefined && visibleSources.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-white/32">No matching sources.</div>
+        ) : null}
       </div>
     </section>
   );
@@ -399,43 +487,40 @@ export function SourceManager() {
 function HealthAudit({ health, source }: { health?: SourceHealth; source: Source }) {
   if (!health || health.status === "unknown") {
     return (
-      <div className="border-t border-white/[0.05] bg-black/15 px-5 py-4 text-xs text-white/38">
-        No sync audit exists yet. Run this source once to establish a health baseline.
+      <div className="mb-3 rounded-lg bg-white/[0.025] px-4 py-3 text-xs text-white/35">
+        Run a sync to establish health data.
       </div>
     );
   }
 
   return (
-    <div className="border-t border-white/[0.05] bg-black/15 px-5 py-4">
-      <div className="grid gap-3 sm:grid-cols-4">
+    <div className="mb-3 rounded-xl border border-white/[0.065] bg-white/[0.018] p-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <AuditMetric label="Health" value={healthLabel(health.status)} />
-        <AuditMetric label="Success rate" value={percent(health.successRate)} />
-        <AuditMetric label="Avg discovered" value={health.averageDiscovered.toFixed(1)} />
+        <AuditMetric label="Success" value={percent(health.successRate)} />
+        <AuditMetric label="Avg found" value={health.averageDiscovered.toFixed(1)} />
         <AuditMetric label="Avg new" value={health.averageCreated.toFixed(1)} />
-        <AuditMetric label="Last duration" value={durationLabel(health.lastDurationMs)} />
+        <AuditMetric label="Duration" value={durationLabel(health.lastDurationMs)} />
         <AuditMetric label="Update rate" value={percent(health.updateRate)} />
-        <AuditMetric label="Last skipped" value={String(health.lastSkipped)} />
-        <AuditMetric label="Highlight sample" value={String(health.articleSampleSize)} />
+        <AuditMetric label="Skipped" value={String(health.lastSkipped)} />
+        <AuditMetric label="Sample" value={String(health.articleSampleSize)} />
       </div>
 
-      <div className="mt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/28">Latest highlight completeness</p>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <QualityMetric label="Missing summary" value={health.missingDescriptionRate} />
-          <QualityMetric label="Missing author" value={health.missingAuthorRate} />
-          <QualityMetric label="Missing image" value={health.missingImageRate} />
-        </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-4">
+        <QualityMetric label="Missing summary" value={health.missingDescriptionRate} />
+        <QualityMetric label="Missing author" value={health.missingAuthorRate} />
+        <QualityMetric label="Missing image" value={health.missingImageRate} />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/30">
-        <span>Last success: {health.lastSuccessAt ? relativeTime(health.lastSuccessAt) : "never"}</span>
-        <span>Latest article: {health.latestArticleAt ? relativeTime(health.latestArticleAt) : "none"}</span>
-        <span>{source.kind.toUpperCase()} ingestion</span>
-        {health.lastNeedsBrowser ? <span className="text-amber-200/60">Browser extraction needed</span> : null}
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/26">
+        <span>Success {health.lastSuccessAt ? relativeTime(health.lastSuccessAt) : "never"}</span>
+        <span>Latest article {health.latestArticleAt ? relativeTime(health.latestArticleAt) : "none"}</span>
+        <span>{source.kind.toUpperCase()}</span>
+        {health.lastNeedsBrowser ? <span className="text-amber-200/55">Browser needed</span> : null}
       </div>
 
       {health.lastError && health.consecutiveFailures > 0 ? (
-        <div className="mt-3 rounded-xl border border-red-300/10 bg-red-300/[0.035] px-3 py-2 text-xs leading-5 text-red-200/70">
+        <div className="mt-3 rounded-lg border border-red-300/10 bg-red-300/[0.03] px-3 py-2 text-xs leading-5 text-red-200/65">
           {health.lastError}
         </div>
       ) : null}
@@ -445,9 +530,9 @@ function HealthAudit({ health, source }: { health?: SourceHealth; source: Source
 
 function HealthStat({ label, value }: { label: string; value: number | null }) {
   return (
-    <div className="bg-[#0b0d0f] px-4 py-3.5">
-      <p className="text-[10px] uppercase tracking-[0.13em] text-white/28">{label}</p>
-      <p className="mt-1 text-xl font-semibold tracking-[-0.03em] text-white/80">{value ?? "—"}</p>
+    <div className="bg-[#121212] px-3 py-3 sm:px-4">
+      <p className="truncate text-[9px] uppercase tracking-[0.1em] text-white/24">{label}</p>
+      <p className="mt-1 text-lg font-semibold tracking-[-0.03em] text-white/70">{value ?? "—"}</p>
     </div>
   );
 }
@@ -455,29 +540,29 @@ function HealthStat({ label, value }: { label: string; value: number | null }) {
 function HealthDot({ status }: { status: HealthStatus }) {
   const className =
     status === "healthy"
-      ? "bg-emerald-300"
+      ? "bg-emerald-400"
       : status === "failing"
-        ? "bg-red-300"
+        ? "bg-red-400"
         : status === "degraded"
-          ? "bg-amber-300"
+          ? "bg-amber-400"
           : "bg-white/20";
-  return <span title={healthLabel(status)} className={`size-2 shrink-0 rounded-full ${className}`} />;
+  return <span title={healthLabel(status)} className={`size-1.5 shrink-0 rounded-full ${className}`} />;
 }
 
 function AuditMetric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.12em] text-white/25">{label}</p>
-      <p className="mt-1 text-sm font-medium text-white/65">{value}</p>
+      <p className="text-[9px] uppercase tracking-[0.1em] text-white/22">{label}</p>
+      <p className="mt-1 text-sm font-medium text-white/62">{value}</p>
     </div>
   );
 }
 
 function QualityMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5">
-      <p className="text-[10px] text-white/28">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-white/62">{percent(value)}</p>
+    <div className="rounded-lg bg-white/[0.025] px-2.5 py-2">
+      <p className="truncate text-[9px] text-white/24">{label}</p>
+      <p className="mt-1 text-xs font-semibold text-white/55">{percent(value)}</p>
     </div>
   );
 }
@@ -488,13 +573,6 @@ function healthLabel(status: HealthStatus) {
   if (status === "failing") return "Failing";
   if (status === "disabled") return "Disabled";
   return "Unchecked";
-}
-
-function qualityLabel(quality: SourceQuality) {
-  if (quality === "primary") return "Primary";
-  if (quality === "expert") return "Expert";
-  if (quality === "publication") return "Publication";
-  return "Community";
 }
 
 function percent(value: number) {
@@ -515,11 +593,25 @@ function relativeTime(timestamp: number) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function Field({ label, value, onChange, wide = false }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean }) {
+function Field({
+  label,
+  value,
+  onChange,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  wide?: boolean;
+}) {
   return (
     <label className={`grid gap-1.5 ${wide ? "sm:col-span-2" : ""}`}>
-      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-[#0d0f11] px-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-cyan-300/40" />
+      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/28">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 rounded-lg border border-white/[0.09] bg-[#151515] px-3 text-sm text-white/72 outline-none focus:border-white/25"
+      />
     </label>
   );
 }
