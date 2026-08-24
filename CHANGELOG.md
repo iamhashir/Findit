@@ -20,6 +20,8 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added global article/source search.
 - Added in-app article reading with original-source links.
 - Added dedicated source pages with source metadata, indexed story counts, latest stories, and original-site links.
+- Added real `/search`, `/saved`, `/article/[id]`, and `/source/[slug]` routes with reload-safe data loading.
+- Added shareable Findit article and source URLs with browser Back/Forward support.
 - Added browser-local Save/Read Later and read/unread state.
 - Added load-more support for larger feed browsing sessions.
 - Added `TECHNICAL.md` with the current architecture and operational notes.
@@ -30,6 +32,8 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Primary mobile navigation is now Home, Search, and Saved; Settings moved to the header.
 - Home now clusters matching multi-source coverage while keeping single-source stories as normal feed cards.
 - Trending gives a bounded boost to stories independently covered by multiple sources.
+- Home, Search, Saved, article cards, and source cards now navigate through Next.js routes instead of local full-screen selection state.
+- Article Share now shares the Findit article URL while View original remains a separate source link.
 - Source names in Home, Search, and Saved now open native Findit source pages instead of forcing an external navigation.
 - Simplified the mobile UI and removed non-functional marketing copy.
 - Vercel builds now deploy Convex before building the Next.js frontend.
