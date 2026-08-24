@@ -1,10 +1,12 @@
 "use client";
 
+import { Bookmark } from "lucide-react";
 import { useQuery } from "convex/react";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { ArticleCard } from "./article-card";
 import type { Article } from "./article-types";
+import { SourceAvatar } from "./source-avatar";
 
 export function SavedView({
   savedIds,
@@ -28,31 +30,27 @@ export function SavedView({
 
   if (savedIds.length === 0) {
     return (
-      <div className="space-y-6">
-        <div className="px-1 pt-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/52">Your library</p>
-          <h2 className="mt-1.5 text-[1.7rem] font-semibold tracking-[-0.045em] text-white/94 sm:text-3xl">
-            Worth coming back to
-          </h2>
+      <section className="mx-auto max-w-4xl">
+        <div className="border-b border-white/[0.07] pb-5">
+          <h1 className="text-3xl font-bold tracking-[-0.055em] text-white sm:text-[2.35rem]">Saved</h1>
+          <p className="mt-1 text-sm text-white/36">Your reading queue.</p>
         </div>
 
-        <div className="rounded-[1.7rem] border border-dashed border-white/10 bg-gradient-to-br from-cyan-200/[0.035] to-white/[0.015] px-6 py-16 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.035] text-cyan-100/55">
-            <BookmarkIcon />
-          </div>
-          <h3 className="mt-4 text-base font-semibold text-white/72">Nothing saved yet</h3>
-          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-white/32">
-            Save the stories you want to revisit. They stay here without cluttering your feed.
-          </p>
+        <div className="flex min-h-[320px] flex-col items-center justify-center text-center">
+          <span className="flex size-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/38">
+            <Bookmark className="size-5" />
+          </span>
+          <h2 className="mt-4 text-base font-semibold text-white/70">No saved stories</h2>
+          <p className="mt-1 text-sm text-white/30">Use the bookmark action on any story.</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (articles === undefined) {
     return (
       <div className="space-y-3">
-        <div className="h-24 animate-pulse rounded-[1.5rem] border border-white/8 bg-white/[0.025]" />
+        <div className="h-20 animate-pulse rounded-xl bg-white/[0.03]" />
         {[0, 1, 2, 3].map((item) => (
           <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
         ))}
@@ -63,40 +61,24 @@ export function SavedView({
   const unreadSaved = articles.filter((article) => !readSet.has(article._id)).length;
 
   return (
-    <section className="space-y-5">
-      <div className="flex items-end justify-between gap-4 px-1 pt-1">
+    <section className="mx-auto max-w-4xl">
+      <div className="flex items-end justify-between gap-4 border-b border-white/[0.07] pb-5">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/52">Your library</p>
-          <h2 className="mt-1.5 text-[1.7rem] font-semibold tracking-[-0.045em] text-white/94 sm:text-3xl">
-            Worth coming back to
-          </h2>
-        </div>
-        <span className="rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-[11px] text-white/34">
-          {articles.length} saved
-        </span>
-      </div>
-
-      <div className="glass-panel flex items-center justify-between gap-4 rounded-[1.35rem] px-4 py-3">
-        <div>
-          <p className="text-xs font-semibold text-white/62">Reading queue</p>
-          <p className="mt-0.5 text-[11px] text-white/28">
-            {unreadSaved > 0 ? `${unreadSaved} still unread` : "You have opened everything here"}
+          <h1 className="text-3xl font-bold tracking-[-0.055em] text-white sm:text-[2.35rem]">Saved</h1>
+          <p className="mt-1 text-sm text-white/36">
+            {articles.length} saved · {unreadSaved} unread
           </p>
         </div>
-        <div className="flex -space-x-1.5">
-          {articles.slice(0, 4).map((article) => (
-            <div
-              key={article._id}
-              title={article.sourceName}
-              className="flex size-7 items-center justify-center rounded-full border-2 border-[#0b0d0e] bg-white/[0.08] text-[8px] font-bold text-cyan-50/60"
-            >
-              {article.sourceName.slice(0, 2).toUpperCase()}
+        <div className="hidden -space-x-2 sm:flex">
+          {articles.slice(0, 5).map((article) => (
+            <div key={article._id} title={article.sourceName} className="rounded-[10px] border-2 border-[#0a0a0a]">
+              <SourceAvatar url={article.url} name={article.sourceName} size="sm" />
             </div>
           ))}
         </div>
       </div>
 
-      <div>
+      <div className="pt-2">
         {articles.map((article) => (
           <ArticleCard
             key={article._id}
@@ -110,22 +92,5 @@ export function SavedView({
         ))}
       </div>
     </section>
-  );
-}
-
-function BookmarkIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 4.75A1.75 1.75 0 0 1 7.75 3h8.5A1.75 1.75 0 0 1 18 4.75V21l-6-3.8L6 21V4.75Z" />
-    </svg>
   );
 }
