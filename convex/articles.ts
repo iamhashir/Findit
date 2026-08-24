@@ -1,6 +1,11 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import { internalMutation, query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 
 const articleValidator = v.object({
   _id: v.id("articles"),
@@ -167,19 +172,86 @@ export const search = query({
     if (searchTerm.length < 2) return [];
 
     const limit = bounded(args.limit ?? 30, 1, 50);
-    if (args.topic) {
-      return await ctx.db
-        .query("articles")
-        .withSearchIndex("search_title", (q) =>
-          q.search("title", searchTerm).eq("topic", args.topic),
-        )
-        .take(limit);
+    const [titleMatches, broadMatches] = await Promise.all([
+      args.topic
+        ? ctx.db
+            .query("articles")
+            .withSearchIndex("search_title", (q) =>
+              q.search("title", searchTerm).eq("topic", args.topic),
+            )
+            .take(limit)
+        : ctx.db
+            .query("articles")
+            .withSearchIndex("search_title", (q) => q.search("title", searchTerm))
+            .take(limit),
+      args.topic
+        ? ctx.db
+            .query("articleSearch")
+            .withSearchIndex("search_text", (q) =>
+              q.search("searchText", searchTerm).eq("topic", args.topic),
+            )
+            .take(limit)
+        : ctx.db
+            .query("articleSearch")
+            .withSearchIndex("search_text", (q) => q.search("searchText", searchTerm))
+            .take(limit),
+    ]);
+
+    const broadArticles = await Promise.all(
+      broadMatches.map((match) => ctx.db.get(match.articleId)),
+    );
+    const byId = new Map<Id<"articles">, Doc<"articles">>();
+
+    for (const article of titleMatches) byId.set(article._id, article);
+    for (const article of broadArticles) {
+      if (article && !byId.has(article._id)) byId.set(article._id, article);
     }
 
-    return await ctx.db
+    return [...byId.values()].slice(0, limit);
+  },
+});
+
+export const backfillSearch = mutation({
+  args: {},
+  returns: v.object({
+    done: v.boolean(),
+    indexed: v.number(),
+  }),
+  handler: async (ctx) => {
+    const state = await ctx.db
+      .query("searchBackfill")
+      .withIndex("by_key", (q) => q.eq("key", SEARCH_BACKFILL_KEY))
+      .unique();
+
+    if (state?.done) return { done: true, indexed: 0 };
+
+    const page = await ctx.db
       .query("articles")
-      .withSearchIndex("search_title", (q) => q.search("title", searchTerm))
-      .take(limit);
+      .withIndex("by_published_at")
+      .order("desc")
+      .paginate({ cursor: state?.cursor ?? null, numItems: 80 });
+
+    for (const article of page.page) {
+      await writeSearchDocument(ctx, article._id, article);
+    }
+
+    const now = Date.now();
+    if (state) {
+      await ctx.db.patch(state._id, {
+        cursor: page.continueCursor,
+        done: page.isDone,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("searchBackfill", {
+        key: SEARCH_BACKFILL_KEY,
+        cursor: page.continueCursor,
+        done: page.isDone,
+        updatedAt: now,
+      });
+    }
+
+    return { done: page.isDone, indexed: page.page.length };
   },
 });
 
@@ -249,6 +321,7 @@ export const upsertScraped = internalMutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, article);
+      await writeSearchDocument(ctx, existing._id, article);
       return { id: existing._id, created: false };
     }
 
@@ -256,6 +329,7 @@ export const upsertScraped = internalMutation({
       ...article,
       discoveredAt: now,
     });
+    await writeSearchDocument(ctx, id, article);
     return { id, created: true };
   },
 });
@@ -275,6 +349,12 @@ type WorkingCluster = {
   latestAt: number;
 };
 
+type SearchableArticle = Pick<
+  Doc<"articles">,
+  "title" | "description" | "author" | "sourceName" | "topic"
+>;
+
+const SEARCH_BACKFILL_KEY = "article-search-v1";
 const CLUSTER_WINDOW_MS = 72 * 60 * 60 * 1_000;
 const STOP_WORDS = new Set([
   "a",
@@ -305,6 +385,41 @@ const STOP_WORDS = new Set([
   "to",
   "with",
 ]);
+
+async function writeSearchDocument(
+  ctx: MutationCtx,
+  articleId: Id<"articles">,
+  article: SearchableArticle,
+) {
+  const existing = await ctx.db
+    .query("articleSearch")
+    .withIndex("by_article", (q) => q.eq("articleId", articleId))
+    .unique();
+  const searchDocument = {
+    articleId,
+    searchText: buildSearchText(article),
+    topic: article.topic,
+    updatedAt: Date.now(),
+  };
+
+  if (existing) {
+    await ctx.db.patch(existing._id, searchDocument);
+  } else {
+    await ctx.db.insert("articleSearch", searchDocument);
+  }
+}
+
+function buildSearchText(article: SearchableArticle) {
+  return [
+    article.title,
+    article.description,
+    article.author,
+    article.sourceName,
+    article.topic,
+  ]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .join(" \n ");
+}
 
 function clusterArticles(articles: Doc<"articles">[]): StoryCluster[] {
   const ordered = [...articles].sort((a, b) => b.publishedAt - a.publishedAt);
