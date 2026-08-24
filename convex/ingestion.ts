@@ -35,6 +35,13 @@ const rssSyncSource = (anyApi as any).rss.syncSource as FunctionReference<
   SyncResult
 >;
 
+const hackerNewsSyncSource = (anyApi as any).hackerNews.syncSource as FunctionReference<
+  "action",
+  "internal",
+  { sourceId: Id<"sources">; maxArticles?: number },
+  SyncResult
+>;
+
 const scrapeSource = (anyApi as any).scraper.scrapeSource as FunctionReference<
   "action",
   "public",
@@ -100,6 +107,16 @@ async function syncOneSource(
 ): Promise<SyncResult> {
   if (source.kind === "rss" && source.feedUrl?.trim()) {
     return await ctx.runAction(rssSyncSource, {
+      sourceId: source._id,
+      maxArticles: bounded(maxArticles, 1, 25),
+    });
+  }
+
+  if (
+    source.kind === "api" &&
+    (source.slug === "hacker-news" || source.apiUrl?.includes("hacker-news.firebaseio.com"))
+  ) {
+    return await ctx.runAction(hackerNewsSyncSource, {
       sourceId: source._id,
       maxArticles: bounded(maxArticles, 1, 25),
     });
