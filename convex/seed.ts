@@ -1,40 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-
-const initialSources = [
-  {
-    name: "GitHub Blog",
-    slug: "github-blog",
-    siteUrl: "https://github.blog/",
-    feedUrl: "https://github.blog/feed/",
-    kind: "rss" as const,
-    category: "Engineering",
-  },
-  {
-    name: "Hacker News",
-    slug: "hacker-news",
-    siteUrl: "https://news.ycombinator.com/",
-    apiUrl: "https://hacker-news.firebaseio.com/v0/",
-    kind: "api" as const,
-    category: "Community",
-  },
-  {
-    name: "Vercel Blog",
-    slug: "vercel-blog",
-    siteUrl: "https://vercel.com/blog",
-    feedUrl: "https://vercel.com/atom",
-    kind: "rss" as const,
-    category: "Web",
-  },
-  {
-    name: "Cloudflare Blog",
-    slug: "cloudflare-blog",
-    siteUrl: "https://blog.cloudflare.com/",
-    feedUrl: "https://blog.cloudflare.com/rss/",
-    kind: "rss" as const,
-    category: "Infrastructure",
-  },
-];
+import { recommendedSources } from "./sourceDefaults";
 
 export const seedSources = internalMutation({
   args: {},
@@ -44,25 +10,40 @@ export const seedSources = internalMutation({
   }),
   handler: async (ctx) => {
     let added = 0;
+    const now = Date.now();
 
-    for (const source of initialSources) {
+    for (const source of recommendedSources) {
       const existing = await ctx.db
         .query("sources")
         .withIndex("by_slug", (q) => q.eq("slug", source.slug))
         .unique();
 
       if (existing) {
+        await ctx.db.patch(existing._id, {
+          recommended: true,
+          rank: source.rank,
+          updatedAt: now,
+        });
         continue;
       }
 
       await ctx.db.insert("sources", {
-        ...source,
+        name: source.name,
+        slug: source.slug,
+        siteUrl: source.siteUrl,
+        ...("feedUrl" in source ? { feedUrl: source.feedUrl } : {}),
+        ...("apiUrl" in source ? { apiUrl: source.apiUrl } : {}),
+        kind: source.kind,
+        category: source.category,
         enabled: true,
-        createdAt: Date.now(),
+        createdAt: now,
+        updatedAt: now,
+        recommended: true,
+        rank: source.rank,
       });
       added += 1;
     }
 
-    return { added, total: initialSources.length };
+    return { added, total: recommendedSources.length };
   },
 });
