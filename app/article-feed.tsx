@@ -100,7 +100,7 @@ export function ArticleFeed({
         )}
       </div>
 
-      {result.hasMore && limit < 80 && (
+      {result?.hasMore && limit < 80 && (
         <div className="pt-4 text-center">
           <button
             type="button"
