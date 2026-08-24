@@ -1,14 +1,19 @@
-import { anyApi, cronJobs, type FunctionReference } from "convex/server";
+import { cronJobs } from "convex/server";
+import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-const syncEnabledSources = (anyApi as any).scheduledIngestion
-  .syncEnabledSources as FunctionReference<"action", "internal", {}, null>;
+crons.interval(
+  "sync due sources",
+  { hours: 1 },
+  internal.ingestion.syncDueSources,
+  {},
+);
 
 crons.interval(
-  "sync enabled sources",
-  { hours: 1 },
-  syncEnabledSources,
+  "compact legacy article highlights",
+  { hours: 6 },
+  internal.articles.compactLegacyHighlights,
   {},
 );
 
