@@ -20,3 +20,11 @@ export type Article = {
   score?: number;
   commentCount?: number;
 };
+
+export type StoryCluster = {
+  primary: Article;
+  articles: Article[];
+  sourceCount: number;
+  latestAt: number;
+  isCluster: boolean;
+};
