@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { anyApi, type FunctionReference } from "convex/server";
 import type { Article } from "./article-types";
 import { ArticleReader } from "./article-reader";
 import { useReadingState } from "./use-reading-state";
@@ -14,14 +14,22 @@ type RouteArticleResult = {
   sourceSlug: string | null;
 };
 
+const getArticleRoute = anyApi.routes.getArticle as FunctionReference<
+  "query",
+  "public",
+  { id: string },
+  RouteArticleResult | null
+>;
+
 export function ArticleRouteView({ id }: { id: string }) {
   const router = useRouter();
   const reading = useReadingState();
-  const result = useQuery(api.routes.getArticle, { id }) as RouteArticleResult | null | undefined;
+  const result = useQuery(getArticleRoute, { id });
+  const articleId = result?.article._id;
 
   useEffect(() => {
-    if (result?.article) reading.markRead(result.article._id);
-  }, [reading.markRead, result?.article]);
+    if (articleId) reading.markRead(articleId);
+  }, [articleId, reading.markRead]);
 
   function goBack() {
     if (window.history.length > 1) router.back();
