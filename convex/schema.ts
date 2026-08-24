@@ -1,6 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+const sourceQuality = v.union(
+  v.literal("primary"),
+  v.literal("expert"),
+  v.literal("publication"),
+  v.literal("community"),
+);
+
 export default defineSchema({
   sources: defineTable({
     name: v.string(),
@@ -15,6 +22,10 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
     recommended: v.optional(v.boolean()),
     rank: v.optional(v.number()),
+    description: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    quality: v.optional(sourceQuality),
+    priority: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_enabled", ["enabled"]),
