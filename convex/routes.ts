@@ -46,12 +46,8 @@ const articleValidator = v.object({
   discoveredAt: v.number(),
   topic: v.optional(v.string()),
   description: v.optional(v.string()),
-  externalId: v.optional(v.string()),
   author: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
-  content: v.optional(v.string()),
-  canonicalUrl: v.optional(v.string()),
-  scrapedAt: v.optional(v.number()),
   score: v.optional(v.number()),
   commentCount: v.optional(v.number()),
 });
@@ -74,7 +70,22 @@ export const getArticle = query({
 
     const source = await ctx.db.get(article.sourceId);
     return {
-      article,
+      article: {
+        _id: article._id,
+        _creationTime: article._creationTime,
+        title: article.title,
+        url: article.url,
+        sourceId: article.sourceId,
+        sourceName: article.sourceName,
+        publishedAt: article.publishedAt,
+        discoveredAt: article.discoveredAt,
+        topic: article.topic,
+        description: article.description?.trim().slice(0, 600) || undefined,
+        author: article.author,
+        imageUrl: article.imageUrl,
+        score: article.score,
+        commentCount: article.commentCount,
+      },
       sourceSlug: source?.slug ?? null,
     };
   },
