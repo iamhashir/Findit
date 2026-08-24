@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
 import { api } from "../convex/_generated/api";
@@ -49,7 +49,6 @@ type SourceHealth = {
   latestArticleAt?: number;
   missingDescriptionRate: number;
   missingAuthorRate: number;
-  missingContentRate: number;
   missingImageRate: number;
 };
 
@@ -69,6 +68,7 @@ type ScrapeResult = {
   processed: number;
   created: number;
   updated: number;
+  unchanged: number;
   skipped: number;
   needsBrowser: boolean;
 };
@@ -83,7 +83,7 @@ const scraperApi = {
   scrapeAll: (anyApi as any).ingestion.syncAll as FunctionReference<
     "action",
     "public",
-    { maxSources?: number; maxArticlesPerSource?: number },
+    { maxSources?: number; maxArticlesPerSource?: number; dueOnly?: boolean },
     ScrapeResult[]
   >,
 };
@@ -98,16 +98,17 @@ const emptyDraft: Draft = {
 };
 
 export function SourceManager() {
-  const sources = useQuery(api.sources.listAll, {}) as Source[] | undefined;
-  const healthRows = useQuery(api.sources.healthOverview, {}) as SourceHealth[] | undefined;
-  const ensureRecommended = useMutation(api.sources.ensureRecommended);
+  const dashboard = useQuery(api.sources.sourceDashboard, {}) as
+    | { sources: Source[]; health: SourceHealth[] }
+    | undefined;
+  const sources = dashboard?.sources;
+  const healthRows = dashboard?.health;
   const createSource = useMutation(api.sources.create);
   const updateSource = useMutation(api.sources.update);
   const setEnabled = useMutation(api.sources.setEnabled);
   const scrapeSource = useAction(scraperApi.scrapeSource);
   const scrapeAll = useAction(scraperApi.scrapeAll);
 
-  const bootstrapped = useRef(false);
   const [editingId, setEditingId] = useState<Id<"sources"> | "new" | null>(null);
   const [expandedHealthId, setExpandedHealthId] = useState<Id<"sources"> | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -119,14 +120,6 @@ export function SourceManager() {
   const [sourceQuery, setSourceQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [healthFilter, setHealthFilter] = useState("All");
-
-  useEffect(() => {
-    if (sources === undefined || bootstrapped.current) return;
-    bootstrapped.current = true;
-    void ensureRecommended({}).catch(() => {
-      bootstrapped.current = false;
-    });
-  }, [ensureRecommended, sources]);
 
   const healthBySource = useMemo(
     () => new Map((healthRows ?? []).map((item) => [item.sourceId, item])),
@@ -188,7 +181,6 @@ export function SourceManager() {
 
     setSaving(true);
     setError("");
-
     try {
       const payload = {
         name: draft.name,
@@ -198,10 +190,8 @@ export function SourceManager() {
         kind: draft.kind,
         category: draft.category,
       };
-
       if (editingId === "new") await createSource(payload);
       else if (editingId) await updateSource({ id: editingId, ...payload });
-
       setEditingId(null);
       setDraft(emptyDraft);
     } catch (cause) {
@@ -216,11 +206,11 @@ export function SourceManager() {
     setStatus("");
     setError("");
     try {
-      const result = await scrapeSource({ sourceId: source._id, maxArticles: 8 });
+      const result = await scrapeSource({ sourceId: source._id, maxArticles: 6 });
       setStatus(
         result.needsBrowser
           ? `${source.name}: browser needed`
-          : `${source.name}: ${result.created} new · ${result.updated} updated`,
+          : `${source.name}: ${result.created} new · ${result.updated} changed · ${result.unchanged} unchanged`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sync failed.");
@@ -234,12 +224,17 @@ export function SourceManager() {
     setStatus("");
     setError("");
     try {
-      const results = await scrapeAll({ maxSources: 50, maxArticlesPerSource: 4 });
+      const results = await scrapeAll({
+        maxSources: 20,
+        maxArticlesPerSource: 4,
+        dueOnly: true,
+      });
       const created = results.reduce((sum, item) => sum + item.created, 0);
       const updated = results.reduce((sum, item) => sum + item.updated, 0);
+      const unchanged = results.reduce((sum, item) => sum + item.unchanged, 0);
       const browser = results.filter((item) => item.needsBrowser).length;
       setStatus(
-        `${results.length} sources · ${created} new · ${updated} updated${
+        `${results.length} due sources · ${created} new · ${updated} changed · ${unchanged} unchanged${
           browser ? ` · ${browser} need browser` : ""
         }`,
       );
@@ -266,7 +261,7 @@ export function SourceManager() {
             disabled={syncingAll}
             className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-40"
           >
-            {syncingAll ? "Syncing…" : "Sync all"}
+            {syncingAll ? "Syncing…" : "Sync due"}
           </button>
           <button
             type="button"
@@ -376,7 +371,7 @@ export function SourceManager() {
                       <p className="mt-0.5 truncate text-xs text-white/30">
                         {source.category} · {source.kind.toUpperCase()}
                         {health?.lastAttemptAt ? ` · sync ${relativeTime(health.lastAttemptAt)}` : " · not checked"}
-                        {health ? ` · +${health.lastCreated}/${health.lastUpdated} updated` : ""}
+                        {health ? ` · +${health.lastCreated}/${health.lastUpdated} changed` : ""}
                       </p>
                     </div>
 
@@ -420,15 +415,14 @@ function HealthAudit({ health, source }: { health?: SourceHealth; source: Source
         <AuditMetric label="Last duration" value={durationLabel(health.lastDurationMs)} />
         <AuditMetric label="Update rate" value={percent(health.updateRate)} />
         <AuditMetric label="Last skipped" value={String(health.lastSkipped)} />
-        <AuditMetric label="Article sample" value={String(health.articleSampleSize)} />
+        <AuditMetric label="Highlight sample" value={String(health.articleSampleSize)} />
       </div>
 
       <div className="mt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/28">Recent data completeness</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <QualityMetric label="Missing description" value={health.missingDescriptionRate} />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/28">Latest highlight completeness</p>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <QualityMetric label="Missing summary" value={health.missingDescriptionRate} />
           <QualityMetric label="Missing author" value={health.missingAuthorRate} />
-          <QualityMetric label="Missing content" value={health.missingContentRate} />
           <QualityMetric label="Missing image" value={health.missingImageRate} />
         </div>
       </div>
