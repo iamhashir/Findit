@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { recommendedSources } from "./sourceDefaults";
 
 const kindValidator = v.union(
@@ -59,6 +59,27 @@ export const listAll = query({
   returns: v.array(sourceValidator),
   handler: async (ctx) => {
     const sources = await ctx.db.query("sources").take(100);
+    return sortSources(sources);
+  },
+});
+
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("sources") },
+  returns: v.union(sourceValidator, v.null()),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+export const listEnabledInternal = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(sourceValidator),
+  handler: async (ctx, args) => {
+    const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 25), 50));
+    const sources = await ctx.db
+      .query("sources")
+      .withIndex("by_enabled", (q) => q.eq("enabled", true))
+      .take(limit);
     return sortSources(sources);
   },
 });
