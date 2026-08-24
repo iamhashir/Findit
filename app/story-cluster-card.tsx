@@ -7,6 +7,7 @@ import type { Article, StoryCluster } from "./article-types";
 
 export function StoryClusterCard({
   cluster,
+  featured = false,
   savedSet,
   readSet,
   onOpenArticle,
@@ -14,6 +15,7 @@ export function StoryClusterCard({
   onOpenSource,
 }: {
   cluster: StoryCluster;
+  featured?: boolean;
   savedSet: Set<Id<"articles">>;
   readSet: Set<Id<"articles">>;
   onOpenArticle: (article: Article) => void;
@@ -29,39 +31,46 @@ export function StoryClusterCard({
 
   return (
     <article
-      className={`my-3 rounded-[1.5rem] border bg-gradient-to-b from-white/[0.055] to-white/[0.025] p-4 transition sm:p-5 ${
-        allRead ? "border-white/8 opacity-65" : "border-cyan-300/16"
-      }`}
+      className={`feed-enter group relative overflow-hidden border transition ${
+        featured
+          ? "rounded-[1.7rem] border-cyan-200/14 bg-gradient-to-br from-cyan-200/[0.075] via-white/[0.038] to-violet-300/[0.035] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.2)] sm:p-6"
+          : "my-2 rounded-[1.45rem] border-white/[0.08] bg-white/[0.025] p-4 sm:p-5"
+      } ${allRead ? "opacity-65" : "opacity-100"}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      {featured ? (
+        <div className="pointer-events-none absolute -right-16 -top-20 size-52 rounded-full bg-cyan-300/[0.08] blur-3xl" />
+      ) : null}
+
+      <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-white/38">
-            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.08] px-2 py-0.5 font-semibold uppercase tracking-[0.1em] text-cyan-100/68">
-              {cluster.sourceCount} sources
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/36">
+            <span className="rounded-full border border-cyan-300/18 bg-cyan-300/[0.08] px-2.5 py-1 font-semibold uppercase tracking-[0.11em] text-cyan-100/72">
+              {featured ? "Developing story" : `${cluster.sourceCount} sources`}
             </span>
-            {primary.topic && (
+            {featured ? <span>{cluster.sourceCount} sources</span> : null}
+            {primary.topic ? (
               <>
                 <span>·</span>
                 <span>{primary.topic}</span>
               </>
-            )}
+            ) : null}
             <span>·</span>
             <span>{formatDate(cluster.latestAt)}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onOpenArticle(primary)}
-            className="mt-2 block w-full text-left"
-          >
-            <h3 className="text-lg font-semibold leading-7 tracking-[-0.025em] text-white/92 transition hover:text-cyan-100 sm:text-xl">
+          <button type="button" onClick={() => onOpenArticle(primary)} className="mt-3 block w-full text-left">
+            <h3
+              className={`font-semibold tracking-[-0.04em] text-white/93 transition group-hover:text-cyan-50 ${
+                featured ? "text-[1.55rem] leading-[1.15] sm:text-[2rem]" : "text-lg leading-7 sm:text-xl"
+              }`}
+            >
               {primary.title}
             </h3>
-            {primary.description && (
-              <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-white/43">
+            {primary.description ? (
+              <p className={`mt-2 text-white/42 ${featured ? "line-clamp-3 text-[14px] leading-6 sm:text-[15px]" : "line-clamp-2 text-sm leading-6"}`}>
                 {primary.description}
               </p>
-            )}
+            ) : null}
           </button>
         </div>
 
@@ -69,67 +78,62 @@ export function StoryClusterCard({
           type="button"
           onClick={() => onToggleSaved(primary._id)}
           aria-label={saved ? "Remove primary story from saved" : "Save primary story"}
-          className={`flex size-9 shrink-0 items-center justify-center rounded-xl border transition ${
+          className={`pressable flex size-10 shrink-0 items-center justify-center rounded-2xl border ${
             saved
-              ? "border-cyan-300/35 bg-cyan-300/12 text-cyan-200"
-              : "border-white/10 text-white/35 hover:border-white/20 hover:text-white"
+              ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
+              : "border-white/10 bg-black/15 text-white/34 hover:bg-white/[0.06] hover:text-white"
           }`}
         >
           <BookmarkIcon filled={saved} />
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onOpenSource(primary.sourceId)}
-          className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[11px] font-medium text-white/62 transition hover:border-cyan-300/25 hover:text-white"
-        >
-          {primary.sourceName}
-        </button>
-        {related.slice(0, 3).map((article) => (
+      <div className="relative mt-4 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {cluster.articles.slice(0, 4).map((article, index) => (
           <button
             key={article._id}
             type="button"
             onClick={() => onOpenSource(article.sourceId)}
-            className="rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-[11px] text-white/40 transition hover:border-white/20 hover:text-white/70"
+            className={`pressable shrink-0 rounded-full border px-2.5 py-1 text-[11px] ${
+              index === 0
+                ? "border-white/12 bg-white/[0.06] font-semibold text-white/65"
+                : "border-white/[0.08] bg-black/10 text-white/38 hover:text-white/68"
+            }`}
           >
             {article.sourceName}
           </button>
         ))}
-        {related.length > 3 && (
-          <span className="text-[11px] text-white/28">+{related.length - 3} more</span>
-        )}
+        {cluster.articles.length > 4 ? <span className="shrink-0 text-[11px] text-white/25">+{cluster.articles.length - 4}</span> : null}
       </div>
 
-      {hnArticle && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200/10 bg-orange-100/[0.035] px-3 py-2 text-[11px] text-orange-50/50">
-          <span className="font-medium text-orange-50/65">Hacker News discussion</span>
-          {typeof hnArticle.score === "number" && <span>▲ {hnArticle.score}</span>}
-          {typeof hnArticle.commentCount === "number" && <span>{hnArticle.commentCount} comments</span>}
+      {hnArticle ? (
+        <div className="relative mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200/[0.08] bg-orange-100/[0.025] px-3 py-2 text-[11px] text-orange-50/42">
+          <span className="font-semibold text-orange-50/62">HN</span>
+          {typeof hnArticle.score === "number" ? <span>▲ {hnArticle.score}</span> : null}
+          {typeof hnArticle.commentCount === "number" ? <span>{hnArticle.commentCount} comments</span> : null}
         </div>
-      )}
+      ) : null}
 
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3">
+      <div className="relative mt-4 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3">
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="text-xs font-medium text-white/42 transition hover:text-white/75"
+          className="pressable text-xs font-medium text-white/40 hover:text-white/72"
           aria-expanded={expanded}
         >
-          {expanded ? "Hide coverage" : `View coverage (${cluster.articles.length})`}
+          {expanded ? "Hide coverage ↑" : `Compare coverage (${cluster.articles.length})`}
         </button>
         <button
           type="button"
           onClick={() => onOpenArticle(primary)}
-          className="text-xs font-medium text-cyan-100/62 transition hover:text-cyan-100"
+          className={`pressable text-xs font-semibold ${featured ? "rounded-xl bg-white px-3.5 py-2 text-zinc-950 hover:bg-cyan-100" : "text-cyan-100/62 hover:text-cyan-100"}`}
         >
-          Read primary →
+          {featured ? "Open primary →" : "Read primary →"}
         </button>
       </div>
 
-      {expanded && (
-        <div className="mt-3 grid gap-2 border-t border-white/[0.06] pt-3">
+      {expanded ? (
+        <div className="relative mt-3 grid gap-2 border-t border-white/[0.06] pt-3">
           {cluster.articles.map((article) => (
             <CoverageRow
               key={article._id}
@@ -141,7 +145,7 @@ export function StoryClusterCard({
             />
           ))}
         </div>
-      )}
+      ) : null}
     </article>
   );
 }
@@ -162,15 +166,15 @@ function CoverageRow({
   const discussion = isHackerNews(article);
 
   return (
-    <div className={`rounded-xl border border-white/[0.07] bg-black/15 p-3 ${read ? "opacity-60" : ""}`}>
-      <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.1em] text-white/27">
+    <div className={`rounded-xl border border-white/[0.065] bg-black/15 p-3 ${read ? "opacity-58" : ""}`}>
+      <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.1em] text-white/25">
         <div className="flex min-w-0 items-center gap-2">
           <span>{primary ? "Primary" : discussion ? "Discussion" : "Coverage"}</span>
           <span>·</span>
           <button
             type="button"
             onClick={() => onOpenSource(article.sourceId)}
-            className="truncate normal-case tracking-normal text-white/48 transition hover:text-white/75"
+            className="truncate normal-case tracking-normal text-white/46 transition hover:text-white/72"
           >
             {article.sourceName}
           </button>
