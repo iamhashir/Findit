@@ -34,6 +34,13 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added `TECHNICAL.md` with the current architecture and operational notes.
 
 ### Changed
+- Redesigned the main app shell around a lighter editorial hierarchy, softer glass controls, calmer navigation, and reduced nested-card chrome.
+- Home now promotes one lead story or developing multi-source story, then switches to denser secondary story rows for faster scanning.
+- Story clusters now emphasize developing coverage, source comparison, and Hacker News discussion without dominating the feed.
+- Search now uses a dedicated discovery layout with topic shortcuts, clearer source results, a stronger search field, and cleaner empty/result states.
+- Saved now behaves like a reading library with queue context and clearer unread status instead of another generic feed card.
+- The article reader now includes reading progress, reading-time context, improved typography, stronger source attribution, and a clearer handoff to the original publication.
+- Added consistent press feedback, focus visibility, subtle page/feed motion, reduced-motion support, and a richer dark canvas treatment across the app.
 - Source synchronization now routes RSS sources through their configured feed URLs, Hacker News through its API, and keeps HTML scraping as the fallback for other source types.
 - Every manual and scheduled source sync now updates a shared health record, including failures previously absorbed by full-catalog sync.
 - Manual and scheduled ingestion can now process the full curated catalog in bounded concurrent batches instead of stopping at the first 10 sources.
