@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { ArticleCard } from "./article-card";
@@ -20,8 +21,14 @@ export function SearchView({
   onToggleSaved: (id: Id<"articles">) => void;
   onOpenSource: (sourceId: Id<"sources">) => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [topic, setTopic] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchParamsKey = searchParams.toString();
+  const urlQuery = searchParams.get("q") ?? "";
+  const urlTopic = searchParams.get("topic");
+  const [query, setQuery] = useState(urlQuery);
+  const [topic, setTopic] = useState<string | null>(urlTopic);
+  const backfillSearch = useMutation(api.articles.backfillSearch);
   const sources = useQuery(api.sources.list, {});
   const normalized = query.trim();
   const articles = useQuery(
@@ -30,6 +37,44 @@ export function SearchView({
       ? { query: normalized, topic: topic ?? undefined, limit: 30 }
       : "skip",
   ) as Article[] | undefined;
+
+  useEffect(() => {
+    setQuery(urlQuery);
+    setTopic(urlTopic);
+  }, [urlQuery, urlTopic]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (normalized) params.set("q", normalized);
+      if (topic) params.set("topic", topic);
+      const next = params.toString();
+      if (next !== searchParamsKey) {
+        router.replace(`/search${next ? `?${next}` : ""}`, { scroll: false });
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [normalized, router, searchParamsKey, topic]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function runBackfill() {
+      for (let attempt = 0; attempt < 20 && !cancelled; attempt += 1) {
+        const result = await backfillSearch({});
+        if (result.done) break;
+      }
+    }
+
+    void runBackfill().catch(() => {
+      // Title search remains available if a background search-index backfill fails.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backfillSearch]);
 
   const topics = useMemo(() => {
     if (!sources) return [];
@@ -56,7 +101,8 @@ export function SearchView({
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search articles, sources, topics"
+          placeholder="Search articles, authors, sources, topics"
+          aria-label="Search Findit"
           className="h-14 w-full rounded-2xl border border-white/12 bg-white/[0.055] pl-12 pr-4 text-[15px] text-white outline-none placeholder:text-white/28 focus:border-cyan-300/45"
         />
       </div>
@@ -77,7 +123,7 @@ export function SearchView({
         <div className="rounded-2xl border border-dashed border-white/12 px-5 py-12 text-center">
           <p className="text-sm font-medium text-white/65">Search Findit</p>
           <p className="mt-1 text-xs leading-5 text-white/32">
-            Search story titles and open source pages without leaving Findit.
+            Search titles, descriptions, authors, sources, and topics. Your search is kept in the URL so it can be reloaded or shared.
           </p>
         </div>
       ) : (
