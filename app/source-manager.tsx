@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 
@@ -43,11 +43,16 @@ export function SourceManager() {
   const createSource = useMutation(api.sources.create);
   const updateSource = useMutation(api.sources.update);
   const setEnabled = useMutation(api.sources.setEnabled);
+  const scrapeSource = useAction(api.scraper.scrapeSource);
+  const scrapeAll = useAction(api.scraper.scrapeAll);
 
   const bootstrapped = useRef(false);
   const [editingId, setEditingId] = useState<Id<"sources"> | "new" | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [saving, setSaving] = useState(false);
+  const [syncingId, setSyncingId] = useState<Id<"sources"> | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -113,6 +118,41 @@ export function SourceManager() {
     }
   }
 
+  async function syncOne(source: Source) {
+    setSyncingId(source._id);
+    setStatus("");
+    setError("");
+    try {
+      const result = await scrapeSource({ sourceId: source._id, maxArticles: 8 });
+      setStatus(
+        result.needsBrowser
+          ? `${source.name}: browser needed`
+          : `${source.name}: ${result.created} new · ${result.updated} updated`,
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Sync failed.");
+    } finally {
+      setSyncingId(null);
+    }
+  }
+
+  async function syncEnabled() {
+    setSyncingAll(true);
+    setStatus("");
+    setError("");
+    try {
+      const results = await scrapeAll({ maxSources: 10, maxArticlesPerSource: 6 });
+      const created = results.reduce((sum, item) => sum + item.created, 0);
+      const updated = results.reduce((sum, item) => sum + item.updated, 0);
+      const browser = results.filter((item) => item.needsBrowser).length;
+      setStatus(`${created} new · ${updated} updated${browser ? ` · ${browser} need browser` : ""}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Sync failed.");
+    } finally {
+      setSyncingAll(false);
+    }
+  }
+
   return (
     <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03]">
       <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-4 sm:px-5">
@@ -122,14 +162,30 @@ export function SourceManager() {
             {sources?.length ?? "—"}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={startAdd}
-          className="rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-cyan-100"
-        >
-          Add
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void syncEnabled()}
+            disabled={syncingAll}
+            className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-40"
+          >
+            {syncingAll ? "Syncing…" : "Sync"}
+          </button>
+          <button
+            type="button"
+            onClick={startAdd}
+            className="rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-cyan-100"
+          >
+            Add
+          </button>
+        </div>
       </div>
+
+      {(status || error) && (
+        <div className={`border-b border-white/[0.07] px-4 py-2.5 text-xs sm:px-5 ${error ? "text-red-300" : "text-white/45"}`}>
+          {error || status}
+        </div>
+      )}
 
       {editingId && (
         <div className="border-b border-white/[0.07] bg-black/20 p-4 sm:p-5">
@@ -233,6 +289,14 @@ export function SourceManager() {
                   </p>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={() => void syncOne(source)}
+                  disabled={syncingId === source._id || !source.enabled}
+                  className="rounded-lg px-2.5 py-2 text-xs font-medium text-white/45 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
+                >
+                  {syncingId === source._id ? "…" : "Sync"}
+                </button>
                 <button
                   type="button"
                   onClick={() => startEdit(source)}
