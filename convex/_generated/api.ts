@@ -8,10 +8,14 @@
 
 import type { ApiFromModules, FilterApi, FunctionReference } from "convex/server";
 import { anyApi } from "convex/server";
+import type * as articles from "../articles.js";
+import type * as scraper from "../scraper.js";
 import type * as seed from "../seed.js";
 import type * as sources from "../sources.js";
 
 const fullApi: ApiFromModules<{
+  articles: typeof articles;
+  scraper: typeof scraper;
   seed: typeof seed;
   sources: typeof sources;
 }> = anyApi as any;
