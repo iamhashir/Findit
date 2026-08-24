@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
@@ -28,13 +28,12 @@ export function SearchView({
   const urlTopic = searchParams.get("topic");
   const [query, setQuery] = useState(urlQuery);
   const [topic, setTopic] = useState<string | null>(urlTopic);
-  const backfillSearch = useMutation(api.articles.backfillSearch);
   const sources = useQuery(api.sources.list, {});
   const normalized = query.trim();
   const articles = useQuery(
     api.articles.search,
     normalized.length >= 2
-      ? { query: normalized, topic: topic ?? undefined, limit: 30 }
+      ? { query: normalized, topic: topic ?? undefined, limit: 24 }
       : "skip",
   ) as Article[] | undefined;
 
@@ -52,29 +51,10 @@ export function SearchView({
       if (next !== searchParamsKey) {
         router.replace(`/search${next ? `?${next}` : ""}`, { scroll: false });
       }
-    }, 250);
+    }, 300);
 
     return () => window.clearTimeout(timeout);
   }, [normalized, router, searchParamsKey, topic]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function runBackfill() {
-      for (let attempt = 0; attempt < 20 && !cancelled; attempt += 1) {
-        const result = await backfillSearch({});
-        if (result.done) break;
-      }
-    }
-
-    void runBackfill().catch(() => {
-      // Title search remains available if a background search-index backfill fails.
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [backfillSearch]);
 
   const topics = useMemo(() => {
     if (!sources) return [];
@@ -166,9 +146,9 @@ export function SearchView({
             <div className="flex size-9 items-center justify-center rounded-xl border border-cyan-200/12 bg-cyan-300/[0.07] text-cyan-100/70">
               ⌕
             </div>
-            <h3 className="mt-4 text-base font-semibold text-white/78">Search is broader now</h3>
+            <h3 className="mt-4 text-base font-semibold text-white/78">Search the highlights</h3>
             <p className="mt-1.5 text-xs leading-5 text-white/32">
-              A query can match titles, descriptions, authors, sources and topics—not just headlines.
+              A query matches titles, summaries, authors, sources and topics without loading full article bodies.
             </p>
           </section>
         </div>
