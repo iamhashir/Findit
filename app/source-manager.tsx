@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { anyApi, type FunctionReference } from "convex/server";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 
@@ -28,6 +29,32 @@ type Draft = {
   category: string;
 };
 
+type ScrapeResult = {
+  sourceId: Id<"sources">;
+  sourceName: string;
+  discovered: number;
+  processed: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  needsBrowser: boolean;
+};
+
+const scraperApi = {
+  scrapeSource: (anyApi as any).scraper.scrapeSource as FunctionReference<
+    "action",
+    "public",
+    { sourceId: Id<"sources">; maxArticles?: number },
+    ScrapeResult
+  >,
+  scrapeAll: (anyApi as any).scraper.scrapeAll as FunctionReference<
+    "action",
+    "public",
+    { maxSources?: number; maxArticlesPerSource?: number },
+    ScrapeResult[]
+  >,
+};
+
 const emptyDraft: Draft = {
   name: "",
   siteUrl: "",
@@ -43,8 +70,8 @@ export function SourceManager() {
   const createSource = useMutation(api.sources.create);
   const updateSource = useMutation(api.sources.update);
   const setEnabled = useMutation(api.sources.setEnabled);
-  const scrapeSource = useAction(api.scraper.scrapeSource);
-  const scrapeAll = useAction(api.scraper.scrapeAll);
+  const scrapeSource = useAction(scraperApi.scrapeSource);
+  const scrapeAll = useAction(scraperApi.scrapeAll);
 
   const bootstrapped = useRef(false);
   const [editingId, setEditingId] = useState<Id<"sources"> | "new" | null>(null);
