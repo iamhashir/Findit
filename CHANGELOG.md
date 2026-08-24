@@ -11,6 +11,7 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added Cheerio + Mozilla Readability article scraping in Convex.
 - Added article discovery, extraction, deduplication, and persistence to the `articles` table.
 - Added per-source and enabled-source sync controls.
+- Added hourly scheduled Convex ingestion for enabled sources.
 - Added the scraped article feed on Home.
 - Added `TECHNICAL.md` with the current architecture and operational notes.
 
