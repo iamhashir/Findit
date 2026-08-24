@@ -1,11 +1,6 @@
-const topics = ["AI", "Web", "Cloud", "DevOps", "Security", "Open Source"];
+import { SourcesList } from "./sources-list";
 
-const sources = [
-  { name: "GitHub Blog", type: "Engineering" },
-  { name: "Hacker News", type: "Community" },
-  { name: "Vercel Blog", type: "Web" },
-  { name: "Cloudflare Blog", type: "Infrastructure" },
-];
+const topics = ["AI", "Web", "Cloud", "DevOps", "Security", "Open Source"];
 
 export default function Home() {
   return (
@@ -50,27 +45,15 @@ export default function Home() {
         <section className="border-t border-zinc-800 py-10">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-zinc-400">Starting sources</p>
+              <p className="text-sm font-medium text-zinc-400">Live sources</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight">
                 Original sources first.
               </h2>
             </div>
-            <span className="text-sm text-zinc-500">More soon</span>
+            <span className="text-sm text-zinc-500">Powered by Convex</span>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {sources.map((source) => (
-              <article
-                key={source.name}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5"
-              >
-                <p className="text-xs uppercase tracking-wider text-zinc-500">
-                  {source.type}
-                </p>
-                <h3 className="mt-2 font-medium text-zinc-100">{source.name}</h3>
-              </article>
-            ))}
-          </div>
+          <SourcesList />
         </section>
 
         <footer className="border-t border-zinc-800 py-8 text-sm text-zinc-500">
