@@ -17,6 +17,7 @@ export function ArticleFeed({
   readSet,
   onOpenArticle,
   onToggleSaved,
+  onOpenSource,
 }: {
   mode: FeedMode;
   topic: string | null;
@@ -25,6 +26,7 @@ export function ArticleFeed({
   readSet: Set<Id<"articles">>;
   onOpenArticle: (article: Article) => void;
   onToggleSaved: (id: Id<"articles">) => void;
+  onOpenSource: (sourceId: Id<"sources">) => void;
 }) {
   const [limit, setLimit] = useState(30);
 
@@ -75,6 +77,7 @@ export function ArticleFeed({
             read={readSet.has(article._id)}
             onOpen={onOpenArticle}
             onToggleSaved={onToggleSaved}
+            onOpenSource={onOpenSource}
           />
         ))}
       </div>
