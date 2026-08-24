@@ -1,16 +1,13 @@
 "use node";
 
-import { Readability } from "@mozilla/readability";
 import * as cheerio from "cheerio";
-import { parseHTML } from "linkedom";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { action, type ActionCtx } from "./_generated/server";
-import type { Doc, Id } from "./_generated/dataModel";
+import { internalAction } from "./_generated/server";
 
 const USER_AGENT =
   "FinditBot/0.1 (+https://findit-gamma-steel.vercel.app; tech-news-indexer)";
-const MAX_CONTENT_CHARS = 40_000;
+const SUMMARY_LIMIT = 600;
 const BLOCKED_PATH_PARTS = [
   "/about",
   "/account",
@@ -36,8 +33,14 @@ const scrapeResultValidator = v.object({
   processed: v.number(),
   created: v.number(),
   updated: v.number(),
+  unchanged: v.number(),
   skipped: v.number(),
   needsBrowser: v.boolean(),
+  qualitySampleSize: v.number(),
+  latestArticleAt: v.optional(v.number()),
+  missingDescriptionRate: v.number(),
+  missingAuthorRate: v.number(),
+  missingImageRate: v.number(),
 });
 
 type ScrapedArticle = {
@@ -48,126 +51,71 @@ type ScrapedArticle = {
   description?: string;
   author?: string;
   imageUrl?: string;
-  content?: string;
 };
 
-export const scrapeSource = action({
+export const scrapeSource = internalAction({
   args: {
     sourceId: v.id("sources"),
+    sourceName: v.string(),
+    siteUrl: v.string(),
+    category: v.string(),
     maxArticles: v.optional(v.number()),
   },
   returns: scrapeResultValidator,
   handler: async (ctx, args) => {
-    const source = await ctx.runQuery(internal.sources.getByIdInternal, {
-      id: args.sourceId,
-    });
-    if (!source) {
-      throw new Error("Source not found.");
-    }
+    const limit = bounded(args.maxArticles ?? 4, 1, 10);
+    const listingHtml = await fetchHtml(args.siteUrl);
+    const candidates = discoverArticleLinks(listingHtml, args.siteUrl, limit);
+    const entries: ScrapedArticle[] = [];
+    let processed = 0;
+    let skipped = 0;
 
-    return await scrapeOneSource(ctx, source, bounded(args.maxArticles ?? 8, 1, 20));
-  },
-});
-
-export const scrapeAll = action({
-  args: {
-    maxSources: v.optional(v.number()),
-    maxArticlesPerSource: v.optional(v.number()),
-  },
-  returns: v.array(scrapeResultValidator),
-  handler: async (ctx, args) => {
-    const maxSources = bounded(args.maxSources ?? 10, 1, 20);
-    const maxArticles = bounded(args.maxArticlesPerSource ?? 6, 1, 15);
-    const sources = await ctx.runQuery(internal.sources.listEnabledInternal, {
-      limit: maxSources,
-    });
-
-    const results = [];
-    for (const source of sources) {
+    for (const candidateUrl of candidates) {
       try {
-        results.push(await scrapeOneSource(ctx, source, maxArticles));
+        const html = await fetchHtml(candidateUrl);
+        processed += 1;
+        const article = extractHighlight(html, candidateUrl);
+        if (!article || article.title.length < 4) {
+          skipped += 1;
+          continue;
+        }
+        entries.push(article);
       } catch {
-        results.push({
-          sourceId: source._id,
-          sourceName: source.name,
-          discovered: 0,
-          processed: 0,
-          created: 0,
-          updated: 0,
-          skipped: 0,
-          needsBrowser: true,
-        });
+        skipped += 1;
       }
     }
-    return results;
+
+    const stored = await ctx.runMutation(internal.articles.ingestBatch, {
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
+      entries: entries.map((entry) => ({
+        ...entry,
+        topic: args.category,
+      })),
+    });
+
+    return {
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
+      discovered: candidates.length,
+      processed,
+      created: stored.created,
+      updated: stored.updated,
+      unchanged: stored.unchanged,
+      skipped,
+      needsBrowser: candidates.length === 0 || (processed > 0 && entries.length === 0),
+      qualitySampleSize: stored.qualitySampleSize,
+      ...(stored.latestArticleAt ? { latestArticleAt: stored.latestArticleAt } : {}),
+      missingDescriptionRate: stored.missingDescriptionRate,
+      missingAuthorRate: stored.missingAuthorRate,
+      missingImageRate: stored.missingImageRate,
+    };
   },
 });
-
-async function scrapeOneSource(
-  ctx: ActionCtx,
-  source: Doc<"sources">,
-  maxArticles: number,
-) {
-  const listingHtml = await fetchHtml(source.siteUrl);
-  const candidates = discoverArticleLinks(listingHtml, source.siteUrl, maxArticles);
-
-  let created = 0;
-  let updated = 0;
-  let skipped = 0;
-  let processed = 0;
-  let needsBrowser = candidates.length === 0;
-
-  for (const candidateUrl of candidates) {
-    try {
-      const html = await fetchHtml(candidateUrl);
-      const article = extractArticle(html, candidateUrl);
-      processed += 1;
-
-      if (!article || article.title.length < 4) {
-        skipped += 1;
-        continue;
-      }
-
-      const stored = await ctx.runMutation(internal.articles.upsertScraped, {
-        sourceId: source._id,
-        sourceName: source.name,
-        title: article.title,
-        url: article.url,
-        canonicalUrl: article.canonicalUrl,
-        publishedAt: article.publishedAt,
-        description: article.description,
-        author: article.author,
-        imageUrl: article.imageUrl,
-        content: article.content,
-        topic: source.category,
-      });
-
-      if (stored.created) created += 1;
-      else updated += 1;
-    } catch {
-      skipped += 1;
-    }
-  }
-
-  if (processed > 0 && created + updated === 0) {
-    needsBrowser = true;
-  }
-
-  return {
-    sourceId: source._id,
-    sourceName: source.name,
-    discovered: candidates.length,
-    processed,
-    created,
-    updated,
-    skipped,
-    needsBrowser,
-  };
-}
 
 async function fetchHtml(url: string) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(() => controller.abort(), 12_000);
 
   try {
     const response = await fetch(url, {
@@ -179,16 +127,12 @@ async function fetchHtml(url: string) {
         "accept-language": "en-US,en;q=0.9",
       },
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} for ${url}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
 
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
       throw new Error(`Unsupported content type for ${url}`);
     }
-
     return await response.text();
   } finally {
     clearTimeout(timeout);
@@ -211,7 +155,6 @@ function discoverArticleLinks(html: string, baseUrl: string, limit: number) {
     const text = $(element).text().replace(/\s+/g, " ").trim();
     let score = 0;
     const segments = url.pathname.split("/").filter(Boolean);
-
     if (text.length >= 18) score += 2;
     if (text.length >= 45) score += 1;
     if (segments.length >= 2) score += 2;
@@ -235,18 +178,9 @@ function discoverArticleLinks(html: string, baseUrl: string, limit: number) {
     .map(([url]) => url);
 }
 
-function extractArticle(html: string, pageUrl: string): ScrapedArticle | null {
+function extractHighlight(html: string, pageUrl: string): ScrapedArticle | null {
   const $ = cheerio.load(html);
   const jsonLd = extractJsonLd($);
-  const { document } = parseHTML(html);
-
-  let readable: ReturnType<Readability["parse"]> = null;
-  try {
-    readable = new Readability(document as unknown as Document).parse();
-  } catch {
-    readable = null;
-  }
-
   const canonical = absoluteUrl(
     firstNonEmpty(
       $("link[rel='canonical']").attr("href"),
@@ -256,29 +190,27 @@ function extractArticle(html: string, pageUrl: string): ScrapedArticle | null {
     pageUrl,
   );
   const finalUrl = normalizeUrl(canonical ?? pageUrl, pageUrl)?.toString() ?? pageUrl;
-
   const title = firstNonEmpty(
-    readable?.title,
     $("meta[property='og:title']").attr("content"),
     $("meta[name='twitter:title']").attr("content"),
     asString(jsonLd?.headline),
+    $("article h1").first().text(),
+    $("h1").first().text(),
     $("title").text(),
   );
   if (!title) return null;
 
   const description = firstNonEmpty(
-    readable?.excerpt,
     $("meta[property='og:description']").attr("content"),
     $("meta[name='description']").attr("content"),
+    $("meta[name='twitter:description']").attr("content"),
     asString(jsonLd?.description),
+    $("article p").first().text(),
   );
-
   const author = firstNonEmpty(
-    readable?.byline,
     $("meta[name='author']").attr("content"),
     authorFromJsonLd(jsonLd),
   );
-
   const imageUrl = absoluteUrl(
     firstNonEmpty(
       $("meta[property='og:image']").attr("content"),
@@ -287,7 +219,6 @@ function extractArticle(html: string, pageUrl: string): ScrapedArticle | null {
     ),
     pageUrl,
   );
-
   const publishedAt = parseDate(
     firstNonEmpty(
       $("meta[property='article:published_time']").attr("content"),
@@ -297,20 +228,14 @@ function extractArticle(html: string, pageUrl: string): ScrapedArticle | null {
     ),
   );
 
-  const content = cleanText(readable?.textContent ?? $("article").text()).slice(
-    0,
-    MAX_CONTENT_CHARS,
-  );
-
   return {
     title: cleanText(title).slice(0, 500),
     url: finalUrl,
     canonicalUrl: canonical,
     publishedAt: publishedAt ?? Date.now(),
-    description: description ? cleanText(description).slice(0, 2_000) : undefined,
-    author: author ? cleanText(author).slice(0, 300) : undefined,
+    description: description ? cleanText(description).slice(0, SUMMARY_LIMIT) : undefined,
+    author: author ? cleanText(author).slice(0, 200) : undefined,
     imageUrl,
-    content: content.length >= 120 ? content : undefined,
   };
 }
 
@@ -395,7 +320,7 @@ function imageFromJsonLd(value: Record<string, unknown> | null) {
 function normalizeUrl(raw: string, baseUrl: string) {
   try {
     const url = new URL(raw, baseUrl);
-    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    if (!["http:", "https:"].includes(url.protocol)) return null;
     url.hash = "";
     for (const key of [...url.searchParams.keys()]) {
       if (key.startsWith("utm_") || ["ref", "source", "fbclid", "gclid"].includes(key)) {
