@@ -28,34 +28,74 @@ export function SavedView({
 
   if (savedIds.length === 0) {
     return (
-      <div className="rounded-[1.75rem] border border-dashed border-white/12 bg-white/[0.02] px-6 py-16 text-center">
-        <div className="mx-auto flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/45">
-          <BookmarkIcon />
+      <div className="space-y-6">
+        <div className="px-1 pt-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/52">Your library</p>
+          <h2 className="mt-1.5 text-[1.7rem] font-semibold tracking-[-0.045em] text-white/94 sm:text-3xl">
+            Worth coming back to
+          </h2>
         </div>
-        <h2 className="mt-4 text-base font-semibold text-white/78">Nothing saved yet</h2>
-        <p className="mx-auto mt-1 max-w-xs text-sm leading-6 text-white/35">
-          Save useful stories from Home or Search and they will stay here on this device.
-        </p>
+
+        <div className="rounded-[1.7rem] border border-dashed border-white/10 bg-gradient-to-br from-cyan-200/[0.035] to-white/[0.015] px-6 py-16 text-center">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.035] text-cyan-100/55">
+            <BookmarkIcon />
+          </div>
+          <h3 className="mt-4 text-base font-semibold text-white/72">Nothing saved yet</h3>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-white/32">
+            Save the stories you want to revisit. They stay here without cluttering your feed.
+          </p>
+        </div>
       </div>
     );
   }
 
   if (articles === undefined) {
     return (
-      <div className="grid gap-3">
+      <div className="space-y-3">
+        <div className="h-24 animate-pulse rounded-[1.5rem] border border-white/8 bg-white/[0.025]" />
         {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="h-28 animate-pulse rounded-2xl border border-white/8 bg-white/[0.025]" />
+          <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
         ))}
       </div>
     );
   }
 
+  const unreadSaved = articles.filter((article) => !readSet.has(article._id)).length;
+
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-4 sm:p-5">
-      <div className="mb-1 flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-white/80">Read later</h2>
-        <span className="text-xs text-white/30">{articles.length}</span>
+    <section className="space-y-5">
+      <div className="flex items-end justify-between gap-4 px-1 pt-1">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/52">Your library</p>
+          <h2 className="mt-1.5 text-[1.7rem] font-semibold tracking-[-0.045em] text-white/94 sm:text-3xl">
+            Worth coming back to
+          </h2>
+        </div>
+        <span className="rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-[11px] text-white/34">
+          {articles.length} saved
+        </span>
       </div>
+
+      <div className="glass-panel flex items-center justify-between gap-4 rounded-[1.35rem] px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold text-white/62">Reading queue</p>
+          <p className="mt-0.5 text-[11px] text-white/28">
+            {unreadSaved > 0 ? `${unreadSaved} still unread` : "You have opened everything here"}
+          </p>
+        </div>
+        <div className="flex -space-x-1.5">
+          {articles.slice(0, 4).map((article) => (
+            <div
+              key={article._id}
+              title={article.sourceName}
+              className="flex size-7 items-center justify-center rounded-full border-2 border-[#0b0d0e] bg-white/[0.08] text-[8px] font-bold text-cyan-50/60"
+            >
+              {article.sourceName.slice(0, 2).toUpperCase()}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div>
         {articles.map((article) => (
           <ArticleCard
