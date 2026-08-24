@@ -48,7 +48,7 @@ export function SourceRouteView({ sourceKey }: { sourceKey: string }) {
   const source = useQuery(getSourceRoute, { key: sourceKey });
   const result = useQuery(
     api.articles.listBySource,
-    source ? { sourceId: source._id, limit: 60 } : "skip",
+    source ? { sourceId: source._id, limit: 40 } : "skip",
   ) as { articles: Article[]; articleCount: number; countCapped: boolean } | undefined;
 
   const groups = useMemo(() => groupArticles(result?.articles ?? []), [result?.articles]);
