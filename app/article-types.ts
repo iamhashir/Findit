@@ -11,12 +11,8 @@ export type Article = {
   discoveredAt: number;
   topic?: string;
   description?: string;
-  externalId?: string;
   author?: string;
   imageUrl?: string;
-  content?: string;
-  canonicalUrl?: string;
-  scrapedAt?: number;
   score?: number;
   commentCount?: number;
 };
