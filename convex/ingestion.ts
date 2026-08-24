@@ -61,7 +61,7 @@ export const syncSource = action({
     });
     if (!source) throw new Error("Source not found.");
 
-    return await syncOneSource(ctx, source, args.maxArticles ?? 8);
+    return await syncOneSourceTracked(ctx, source, args.maxArticles ?? 8);
   },
 });
 
@@ -84,7 +84,7 @@ export const syncAll = action({
       const batchResults = await Promise.all(
         batch.map(async (source) => {
           try {
-            return await syncOneSource(ctx, source, maxArticles);
+            return await syncOneSourceTracked(ctx, source, maxArticles);
           } catch {
             return {
               sourceId: source._id,
@@ -105,6 +105,44 @@ export const syncAll = action({
     return results;
   },
 });
+
+async function syncOneSourceTracked(
+  ctx: ActionCtx,
+  source: Doc<"sources">,
+  maxArticles: number,
+): Promise<SyncResult> {
+  const attemptedAt = Date.now();
+  try {
+    const result = await syncOneSource(ctx, source, maxArticles);
+    await ctx.runMutation(internal.sources.recordSyncHealth, {
+      sourceId: source._id,
+      attemptedAt,
+      durationMs: Date.now() - attemptedAt,
+      success: true,
+      discovered: result.discovered,
+      created: result.created,
+      updated: result.updated,
+      skipped: result.skipped,
+      needsBrowser: result.needsBrowser,
+    });
+    return result;
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "Unknown sync failure";
+    await ctx.runMutation(internal.sources.recordSyncHealth, {
+      sourceId: source._id,
+      attemptedAt,
+      durationMs: Date.now() - attemptedAt,
+      success: false,
+      error: message,
+      discovered: 0,
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      needsBrowser: source.kind === "web",
+    });
+    throw cause;
+  }
+}
 
 async function syncOneSource(
   ctx: ActionCtx,
