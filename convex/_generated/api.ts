@@ -1,25 +1,27 @@
 /* eslint-disable */
 /**
- * Generated API references for this Convex app.
- * Run `npx convex dev` to regenerate.
+ * Generated `api` utility.
+ *
+ * THIS CODE IS AUTOMATICALLY GENERATED.
+ * To regenerate, run `npx convex dev`.
  */
 
-import { anyApi } from "convex/server";
-import type * as seed from "../seed";
-import type * as sources from "../sources";
 import type { ApiFromModules, FilterApi, FunctionReference } from "convex/server";
+import { anyApi } from "convex/server";
+import type * as seed from "../seed.js";
+import type * as sources from "../sources.js";
 
-type FullApi = ApiFromModules<{
+const fullApi: ApiFromModules<{
   seed: typeof seed;
   sources: typeof sources;
-}>;
+}> = anyApi as any;
 
-export const api = anyApi as FilterApi<
-  FullApi,
+export const api: FilterApi<
+  typeof fullApi,
   FunctionReference<any, "public">
->;
+> = anyApi as any;
 
-export const internal = anyApi as FilterApi<
-  FullApi,
+export const internal: FilterApi<
+  typeof fullApi,
   FunctionReference<any, "internal">
->;
+> = anyApi as any;
