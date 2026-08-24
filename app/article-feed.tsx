@@ -1,68 +1,95 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
+import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
+import { ArticleCard } from "./article-card";
+import type { Article } from "./article-types";
 
-export function ArticleFeed() {
-  const articles = useQuery(api.articles.listLatest, { limit: 30 });
+export type FeedMode = "latest" | "trending";
 
-  if (articles === undefined) {
+export function ArticleFeed({
+  mode,
+  topic,
+  unreadOnly,
+  savedSet,
+  readSet,
+  onOpenArticle,
+  onToggleSaved,
+}: {
+  mode: FeedMode;
+  topic: string | null;
+  unreadOnly: boolean;
+  savedSet: Set<Id<"articles">>;
+  readSet: Set<Id<"articles">>;
+  onOpenArticle: (article: Article) => void;
+  onToggleSaved: (id: Id<"articles">) => void;
+}) {
+  const [limit, setLimit] = useState(30);
+
+  useEffect(() => {
+    setLimit(30);
+  }, [mode, topic]);
+
+  const args = { limit, topic: topic ?? undefined };
+  const latest = useQuery(api.articles.listLatest, mode === "latest" ? args : "skip") as
+    | Article[]
+    | undefined;
+  const trending = useQuery(api.articles.listTrending, mode === "trending" ? args : "skip") as
+    | Article[]
+    | undefined;
+  const articles = mode === "latest" ? latest : trending;
+
+  const visibleArticles = useMemo(() => {
+    if (!articles) return undefined;
+    return unreadOnly ? articles.filter((article) => !readSet.has(article._id)) : articles;
+  }, [articles, readSet, unreadOnly]);
+
+  if (visibleArticles === undefined) {
     return (
-      <div className="grid gap-3">
+      <div className="grid gap-3 py-1">
         {[0, 1, 2, 3, 4].map((item) => (
-          <div key={item} className="h-28 animate-pulse rounded-2xl border border-white/8 bg-white/[0.03]" />
+          <div key={item} className="h-28 animate-pulse rounded-2xl border border-white/8 bg-white/[0.025]" />
         ))}
       </div>
     );
   }
 
-  if (articles.length === 0) {
+  if (visibleArticles.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-white/35">
-        No articles yet. Sync sources in Settings.
+        {unreadOnly ? "You have read everything in this view." : "No articles in this view yet."}
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-white/[0.07]">
-      {articles.map((article) => (
-        <a
-          key={article._id}
-          href={article.url}
-          target="_blank"
-          rel="noreferrer"
-          className="block px-1 py-4 transition hover:bg-white/[0.025] sm:px-2"
-        >
-          <div className="flex items-center gap-2 text-[11px] text-white/35">
-            <span>{article.sourceName}</span>
-            <span>·</span>
-            <span>{formatDate(article.publishedAt)}</span>
-          </div>
-          <h3 className="mt-1.5 text-base font-semibold leading-6 tracking-[-0.02em] text-white/90 sm:text-lg">
-            {article.title}
-          </h3>
-          {article.description && (
-            <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-white/40">
-              {article.description}
-            </p>
-          )}
-        </a>
-      ))}
+    <div>
+      <div>
+        {visibleArticles.map((article) => (
+          <ArticleCard
+            key={article._id}
+            article={article}
+            saved={savedSet.has(article._id)}
+            read={readSet.has(article._id)}
+            onOpen={onOpenArticle}
+            onToggleSaved={onToggleSaved}
+          />
+        ))}
+      </div>
+
+      {articles && articles.length >= limit && limit < 100 && (
+        <div className="pt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setLimit((current) => Math.min(100, current + 20))}
+            className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-medium text-white/48 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            Load more
+          </button>
+        </div>
+      )}
     </div>
   );
-}
-
-function formatDate(timestamp: number) {
-  const date = new Date(timestamp);
-  const now = Date.now();
-  const diffMinutes = Math.max(0, Math.floor((now - timestamp) / 60_000));
-
-  if (diffMinutes < 60) return `${Math.max(1, diffMinutes)}m`;
-  const hours = Math.floor(diffMinutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
