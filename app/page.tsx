@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
 import { SourceFinder } from "./source-finder";
 import { SourceManager } from "./source-manager";
 import { SourcesList } from "./sources-list";
@@ -10,6 +12,14 @@ type IconName = "home" | "search" | "settings" | "arrow";
 
 export default function Home() {
   const [view, setView] = useState<View>("home");
+  const ensureRecommended = useMutation(api.sources.ensureRecommended);
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    void ensureRecommended({});
+  }, [ensureRecommended]);
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#050607] text-white">
