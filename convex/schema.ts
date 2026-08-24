@@ -8,10 +8,13 @@ export default defineSchema({
     siteUrl: v.string(),
     feedUrl: v.optional(v.string()),
     apiUrl: v.optional(v.string()),
-    kind: v.union(v.literal("rss"), v.literal("api")),
+    kind: v.union(v.literal("rss"), v.literal("api"), v.literal("web")),
     category: v.string(),
     enabled: v.boolean(),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+    recommended: v.optional(v.boolean()),
+    rank: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_enabled", ["enabled"]),
