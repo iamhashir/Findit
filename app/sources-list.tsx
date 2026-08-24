@@ -8,11 +8,11 @@ export function SourcesList() {
 
   if (sources === undefined) {
     return (
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
-            className="h-24 animate-pulse rounded-2xl border border-zinc-700 bg-zinc-900/60"
+            className="h-28 animate-pulse rounded-3xl border border-white/8 bg-white/[0.035]"
           />
         ))}
       </div>
@@ -21,35 +21,34 @@ export function SourcesList() {
 
   if (sources.length === 0) {
     return (
-      <div className="mt-8 rounded-2xl border border-dashed border-zinc-700 p-6 text-sm text-zinc-300">
-        Convex is connected. Run
-        <code className="ml-2 rounded bg-zinc-900 px-2 py-1 text-zinc-100">
-          npm run convex:seed
-        </code>
-        to add the starting sources.
+      <div className="mt-5 rounded-3xl border border-dashed border-white/10 bg-white/[0.025] p-6 text-sm text-white/45">
+        Convex is connected. Seed the starting sources to bring the feed online.
       </div>
     );
   }
 
   return (
-    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+    <div className="mt-5 grid gap-3 sm:grid-cols-2">
       {sources.map((source) => (
         <a
           key={source._id}
           href={source.siteUrl}
           target="_blank"
           rel="noreferrer"
-          className="rounded-2xl border border-zinc-700 bg-zinc-900/60 p-5 transition hover:border-zinc-500 hover:bg-zinc-900"
+          className="group rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/25 hover:bg-white/[0.065]"
         >
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs uppercase tracking-wider text-zinc-400">
-              {source.category}
-            </p>
-            <span className="text-xs text-zinc-500">
-              {source.kind.toUpperCase()}
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-xs font-semibold text-cyan-100/80">
+              {source.name.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="truncate text-sm font-medium text-white/85">{source.name}</h4>
+              <p className="mt-0.5 text-xs text-white/30">{source.category}</p>
+            </div>
+            <span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.16em] text-white/30">
+              {source.kind}
             </span>
           </div>
-          <h3 className="mt-2 font-medium text-zinc-100">{source.name}</h3>
         </a>
       ))}
     </div>
