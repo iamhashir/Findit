@@ -3,8 +3,20 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
+import {
+  Bookmark,
+  Check,
+  ChevronLeft,
+  Home,
+  Search,
+  Settings2,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { Toaster, toast } from "sonner";
 import type { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import type { FeedMode } from "./article-feed";
@@ -29,13 +41,38 @@ const SourceManager = dynamic(
 );
 
 export type MainView = "home" | "search" | "saved";
-type HeaderView = MainView | "settings";
-type IconName = "home" | "search" | "bookmark" | "settings";
+
+type NavItem = {
+  view: MainView;
+  href: string;
+  label: string;
+  icon: typeof Home;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { view: "home", href: "/", label: "Home", icon: Home },
+  { view: "search", href: "/search", label: "Search", icon: Search },
+  { view: "saved", href: "/saved", label: "Saved", icon: Bookmark },
+];
 
 export function MainApp({ view }: { view: MainView }) {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const reading = useReadingState();
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSettingsOpen(false);
+        router.push("/search");
+      }
+      if (event.key === "Escape") setSettingsOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   function openArticle(article: Article) {
     reading.markRead(article._id);
@@ -46,110 +83,174 @@ export function MainApp({ view }: { view: MainView }) {
     router.push(`/source/${sourceId}`);
   }
 
-  const headerView: HeaderView = settingsOpen ? "settings" : view;
+  function toggleSaved(id: Id<"articles">) {
+    const removing = reading.savedSet.has(id);
+    reading.toggleSaved(id);
+    toast(removing ? "Removed from saved" : "Saved", { duration: 1500 });
+  }
 
   return (
-    <main className="app-canvas relative min-h-screen overflow-x-hidden text-white">
-      <div className="relative mx-auto min-h-screen w-full max-w-5xl px-4 pb-32 sm:px-6 lg:px-8">
-        <AppHeader
-          view={headerView}
+    <main className="app-canvas min-h-screen text-white">
+      <Toaster
+        position="bottom-right"
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: "#171717",
+            border: "1px solid rgba(255,255,255,.1)",
+            color: "#f5f5f5",
+          },
+        }}
+      />
+
+      <div className="mx-auto flex min-h-screen w-full max-w-[1480px]">
+        <DesktopSidebar
+          activeView={view}
+          savedCount={reading.savedIds.length}
           onOpenSettings={() => setSettingsOpen(true)}
-          onBack={() => setSettingsOpen(false)}
         />
 
-        <div className="page-enter mx-auto max-w-3xl py-5 sm:py-8">
-          {!settingsOpen && view === "home" ? (
-            <HomeView
-              savedSet={reading.savedSet}
-              readSet={reading.readSet}
-              onOpenArticle={openArticle}
-              onToggleSaved={reading.toggleSaved}
-              onOpenSource={openSource}
-            />
-          ) : null}
-          {!settingsOpen && view === "search" ? (
-            <SearchView
-              savedSet={reading.savedSet}
-              readSet={reading.readSet}
-              onOpenArticle={openArticle}
-              onToggleSaved={reading.toggleSaved}
-              onOpenSource={openSource}
-            />
-          ) : null}
-          {!settingsOpen && view === "saved" ? (
-            <SavedView
-              savedIds={reading.savedIds}
-              savedSet={reading.savedSet}
-              readSet={reading.readSet}
-              onOpenArticle={openArticle}
-              onToggleSaved={reading.toggleSaved}
-              onOpenSource={openSource}
-            />
-          ) : null}
-          {settingsOpen ? <SourceManager /> : null}
+        <div className="min-w-0 flex-1">
+          <MobileHeader view={view} onOpenSettings={() => setSettingsOpen(true)} />
+
+          <div className="mx-auto w-full max-w-[1120px] px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:px-10 lg:pb-12 lg:pt-10">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={view}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {view === "home" ? (
+                  <HomeView
+                    savedSet={reading.savedSet}
+                    readSet={reading.readSet}
+                    onOpenArticle={openArticle}
+                    onToggleSaved={toggleSaved}
+                    onOpenSource={openSource}
+                  />
+                ) : null}
+                {view === "search" ? (
+                  <SearchView
+                    savedSet={reading.savedSet}
+                    readSet={reading.readSet}
+                    onOpenArticle={openArticle}
+                    onToggleSaved={toggleSaved}
+                    onOpenSource={openSource}
+                  />
+                ) : null}
+                {view === "saved" ? (
+                  <SavedView
+                    savedIds={reading.savedIds}
+                    savedSet={reading.savedSet}
+                    readSet={reading.readSet}
+                    onOpenArticle={openArticle}
+                    onToggleSaved={toggleSaved}
+                    onOpenSource={openSource}
+                  />
+                ) : null}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {!settingsOpen ? <BottomNav activeView={view} savedCount={reading.savedIds.length} /> : null}
+      <MobileBottomNav activeView={view} savedCount={reading.savedIds.length} />
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </main>
   );
 }
 
-function AppHeader({
-  view,
+function DesktopSidebar({
+  activeView,
+  savedCount,
   onOpenSettings,
-  onBack,
 }: {
-  view: HeaderView;
+  activeView: MainView;
+  savedCount: number;
   onOpenSettings: () => void;
-  onBack: () => void;
 }) {
-  const title =
-    view === "home" ? "Findit" : view === "search" ? "Search" : view === "saved" ? "Saved" : "Settings";
+  return (
+    <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 border-r border-white/[0.07] px-5 py-7 lg:flex lg:flex-col">
+      <Link href="/" className="px-2 text-[22px] font-bold tracking-[-0.055em] text-white">
+        Findit
+      </Link>
+
+      <nav className="mt-9 space-y-1" aria-label="Primary navigation">
+        {NAV_ITEMS.map((item) => {
+          const active = item.view === activeView;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.view}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`group relative flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
+                active ? "text-white" : "text-white/45 hover:bg-white/[0.045] hover:text-white/80"
+              }`}
+            >
+              {active ? (
+                <motion.span
+                  layoutId="desktop-nav-active"
+                  className="absolute inset-0 rounded-xl bg-white/[0.075]"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              ) : null}
+              <Icon className="relative size-[18px]" strokeWidth={1.9} />
+              <span className="relative">{item.label}</span>
+              {item.view === "saved" && savedCount > 0 ? (
+                <span className="relative ml-auto rounded-md bg-white/[0.08] px-1.5 py-0.5 text-[10px] tabular-nums text-white/55">
+                  {savedCount > 99 ? "99+" : savedCount}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-5 border-t border-white/[0.06] pt-5">
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-white/45 transition hover:bg-white/[0.045] hover:text-white/80"
+        >
+          <Settings2 className="size-[18px]" strokeWidth={1.9} />
+          Sources
+        </button>
+      </div>
+
+      <div className="mt-auto px-2 pb-1">
+        <Link
+          href="/search"
+          className="flex items-center justify-between rounded-lg text-xs text-white/28 transition hover:text-white/55"
+        >
+          <span>Quick search</span>
+          <kbd className="rounded-md border border-white/[0.08] bg-white/[0.035] px-1.5 py-1 font-sans text-[10px] text-white/35">
+            ⌘ K
+          </kbd>
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+function MobileHeader({ view, onOpenSettings }: { view: MainView; onOpenSettings: () => void }) {
+  const title = view === "home" ? "Findit" : view === "search" ? "Search" : "Saved";
 
   return (
-    <header className="sticky top-0 z-30 -mx-4 border-b border-white/[0.065] bg-[#070809]/82 px-4 py-3 backdrop-blur-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {view === "settings" ? (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Back"
-              className="pressable flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.025] text-white/58 hover:bg-white/[0.06] hover:text-white"
-            >
-              ←
-            </button>
-          ) : null}
-
-          {view === "home" ? (
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex size-8 items-center justify-center rounded-xl border border-cyan-200/15 bg-cyan-300/[0.08] shadow-[0_0_32px_rgba(103,232,249,0.08)]">
-                <span className="size-2 rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(103,232,249,0.85)]" />
-              </div>
-              <div>
-                <h1 className="truncate text-xl font-semibold tracking-[-0.045em] text-white/95">{title}</h1>
-                <p className="-mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">
-                  Signals for builders
-                </p>
-              </div>
-            </div>
-          ) : (
-            <h1 className="truncate text-xl font-semibold tracking-[-0.04em] text-white/94">{title}</h1>
-          )}
-        </div>
-
-        {view !== "settings" ? (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            aria-label="Open Settings"
-            className="pressable flex size-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] text-white/42 shadow-[0_8px_30px_rgba(0,0,0,0.18)] hover:border-white/16 hover:bg-white/[0.06] hover:text-white"
-          >
-            <Icon name="settings" className="size-[17px]" />
-          </button>
-        ) : null}
-      </div>
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-white/[0.065] bg-[#0a0a0a]/92 px-4 backdrop-blur-xl lg:hidden">
+      <Link href="/" className="text-lg font-bold tracking-[-0.05em] text-white">
+        {title}
+      </Link>
+      <button
+        type="button"
+        onClick={onOpenSettings}
+        aria-label="Manage sources"
+        className="flex size-9 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+      >
+        <SlidersHorizontal className="size-[18px]" />
+      </button>
     </header>
   );
 }
@@ -178,59 +279,54 @@ function HomeView({
   }, [sources]);
 
   return (
-    <section className="space-y-5">
-      <div className="flex items-end justify-between gap-4 px-1 pt-1">
+    <section>
+      <div className="flex flex-col gap-5 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/55">
-            <span className="size-1.5 rounded-full bg-cyan-300" />
-            Live feed
-          </div>
-          <h2 className="mt-1.5 text-[1.7rem] font-semibold leading-tight tracking-[-0.045em] text-white/94 sm:text-3xl">
-            What matters now
-          </h2>
+          <h1 className="text-3xl font-bold tracking-[-0.055em] text-white sm:text-[2.35rem]">Top stories</h1>
+          <p className="mt-1 text-sm text-white/38">Updated from your enabled sources.</p>
         </div>
-        <p className="hidden max-w-[14rem] text-right text-xs leading-5 text-white/28 sm:block">
-          Source-first technology, AI and engineering coverage.
-        </p>
-      </div>
 
-      <div className="glass-panel sticky top-[65px] z-20 -mx-1 rounded-[1.35rem] p-2.5 sm:mx-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex rounded-xl bg-black/25 p-1">
+        <div className="flex items-center gap-2">
+          <div className="relative flex rounded-lg bg-white/[0.045] p-1">
             <FeedTab active={mode === "latest"} label="Latest" onClick={() => setMode("latest")} />
             <FeedTab active={mode === "trending"} label="Trending" onClick={() => setMode("trending")} />
           </div>
           <button
             type="button"
             onClick={() => setUnreadOnly((current) => !current)}
-            className={`pressable rounded-xl border px-3 py-2 text-xs font-medium ${
+            className={`flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
               unreadOnly
-                ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"
-                : "border-white/8 bg-white/[0.025] text-white/42 hover:bg-white/[0.05] hover:text-white/70"
+                ? "border-white/16 bg-white/10 text-white"
+                : "border-white/[0.075] text-white/43 hover:bg-white/[0.045] hover:text-white/75"
             }`}
           >
-            {unreadOnly ? "Unread only" : "Unread"}
+            {unreadOnly ? <Check className="size-3.5" /> : null}
+            Unread
           </button>
         </div>
+      </div>
 
-        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TopicChip active={topic === null} label="Everything" onClick={() => setTopic(null)} />
+      <div className="sticky top-14 z-20 -mx-4 border-b border-white/[0.06] bg-[#0a0a0a]/94 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-10 lg:px-10">
+        <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TopicChip active={topic === null} label="All" onClick={() => setTopic(null)} />
           {topics.map((item) => (
             <TopicChip key={item} active={topic === item} label={item} onClick={() => setTopic(item)} />
           ))}
         </div>
       </div>
 
-      <ArticleFeed
-        mode={mode}
-        topic={topic}
-        unreadOnly={unreadOnly}
-        savedSet={savedSet}
-        readSet={readSet}
-        onOpenArticle={onOpenArticle}
-        onToggleSaved={onToggleSaved}
-        onOpenSource={onOpenSource}
-      />
+      <div className="pt-3">
+        <ArticleFeed
+          mode={mode}
+          topic={topic}
+          unreadOnly={unreadOnly}
+          savedSet={savedSet}
+          readSet={readSet}
+          onOpenArticle={onOpenArticle}
+          onToggleSaved={onToggleSaved}
+          onOpenSource={onOpenSource}
+        />
+      </div>
     </section>
   );
 }
@@ -240,13 +336,16 @@ function FeedTab({ active, label, onClick }: { active: boolean; label: string; o
     <button
       type="button"
       onClick={onClick}
-      className={`pressable rounded-lg px-4 py-2 text-xs font-semibold ${
-        active
-          ? "bg-white/[0.11] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
-          : "text-white/35 hover:text-white/70"
-      }`}
+      className={`relative h-7 rounded-md px-3 text-xs font-medium transition ${active ? "text-white" : "text-white/38 hover:text-white/70"}`}
     >
-      {label}
+      {active ? (
+        <motion.span
+          layoutId="feed-mode-active"
+          className="absolute inset-0 rounded-md bg-white/[0.09] shadow-sm"
+          transition={{ type: "spring", stiffness: 500, damping: 35 }}
+        />
+      ) : null}
+      <span className="relative">{label}</span>
     </button>
   );
 }
@@ -256,45 +355,49 @@ function TopicChip({ active, label, onClick }: { active: boolean; label: string;
     <button
       type="button"
       onClick={onClick}
-      className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium ${
-        active
-          ? "bg-cyan-300 text-zinc-950 shadow-[0_4px_18px_rgba(103,232,249,0.12)]"
-          : "border border-white/[0.07] bg-white/[0.025] text-white/38 hover:bg-white/[0.05] hover:text-white/70"
+      className={`relative shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+        active ? "text-zinc-950" : "text-white/40 hover:bg-white/[0.045] hover:text-white/75"
       }`}
     >
-      {label}
+      {active ? (
+        <motion.span
+          layoutId="topic-active"
+          className="absolute inset-0 rounded-lg bg-white"
+          transition={{ type: "spring", stiffness: 450, damping: 34 }}
+        />
+      ) : null}
+      <span className="relative">{label}</span>
     </button>
   );
 }
 
-function BottomNav({ activeView, savedCount }: { activeView: MainView; savedCount: number }) {
-  const items: { view: MainView; href: string; label: string; icon: IconName }[] = [
-    { view: "home", href: "/", label: "Home", icon: "home" },
-    { view: "search", href: "/search", label: "Search", icon: "search" },
-    { view: "saved", href: "/saved", label: "Saved", icon: "bookmark" },
-  ];
-
+function MobileBottomNav({ activeView, savedCount }: { activeView: MainView; savedCount: number }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
-      <div className="glass-panel mx-auto grid max-w-sm grid-cols-3 rounded-[1.6rem] p-1.5 shadow-[0_-18px_60px_rgba(0,0,0,0.34)]">
-        {items.map((item) => {
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[#0b0b0b]/95 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl lg:hidden">
+      <div className="mx-auto grid max-w-md grid-cols-3">
+        {NAV_ITEMS.map((item) => {
           const active = item.view === activeView;
+          const Icon = item.icon;
           return (
             <Link
               key={item.view}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`pressable relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-[1.25rem] text-[10px] font-semibold ${
-                active
-                  ? "bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]"
-                  : "text-white/32 hover:bg-white/[0.04] hover:text-white/65"
+              className={`relative flex h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition ${
+                active ? "text-white" : "text-white/34"
               }`}
             >
-              <Icon name={item.icon} className="size-[18px]" />
-              {item.label}
-              {active ? <span className="absolute bottom-1.5 h-0.5 w-4 rounded-full bg-cyan-300/70" /> : null}
+              {active ? (
+                <motion.span
+                  layoutId="mobile-nav-active"
+                  className="absolute inset-x-3 inset-y-1 rounded-xl bg-white/[0.065]"
+                  transition={{ type: "spring", stiffness: 430, damping: 34 }}
+                />
+              ) : null}
+              <Icon className="relative size-[18px]" strokeWidth={active ? 2.2 : 1.8} />
+              <span className="relative">{item.label}</span>
               {item.view === "saved" && savedCount > 0 ? (
-                <span className="absolute right-[25%] top-2 min-w-4 rounded-full bg-cyan-300 px-1 text-[9px] font-bold leading-4 text-zinc-950">
+                <span className="absolute right-[27%] top-1.5 min-w-4 rounded-full bg-white px-1 text-center text-[9px] font-bold leading-4 text-zinc-950">
                   {savedCount > 99 ? "99+" : savedCount}
                 </span>
               ) : null}
@@ -306,12 +409,64 @@ function BottomNav({ activeView, savedCount }: { activeView: MainView; savedCoun
   );
 }
 
+function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-[70]">
+          <motion.button
+            type="button"
+            aria-label="Close source settings"
+            className="absolute inset-0 bg-black/65"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+          <motion.aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Source settings"
+            className="absolute inset-y-0 right-0 flex w-full max-w-[540px] flex-col border-l border-white/[0.09] bg-[#101010] shadow-2xl"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
+          >
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.07] px-4 sm:px-5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center gap-2 text-sm font-medium text-white/55 transition hover:text-white sm:hidden"
+              >
+                <ChevronLeft className="size-4" /> Back
+              </button>
+              <h2 className="hidden text-sm font-semibold text-white/85 sm:block">Sources</h2>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="flex size-8 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+              <SourceManager />
+            </div>
+          </motion.aside>
+        </div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 function FeedLoading() {
   return (
     <div className="space-y-3">
-      <div className="h-64 animate-pulse rounded-[1.7rem] border border-white/8 bg-white/[0.03]" />
+      <div className="h-[360px] animate-pulse rounded-2xl bg-white/[0.035]" />
       {[0, 1, 2].map((item) => (
-        <div key={item} className="h-28 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
+        <div key={item} className="h-32 animate-pulse border-b border-white/[0.06] bg-white/[0.012]" />
       ))}
     </div>
   );
@@ -320,47 +475,8 @@ function FeedLoading() {
 function LazyViewLoading() {
   return (
     <div className="space-y-4 py-2">
-      <div className="h-20 animate-pulse rounded-[1.5rem] border border-white/8 bg-white/[0.025]" />
-      <div className="h-48 animate-pulse rounded-[1.5rem] border border-white/8 bg-white/[0.02]" />
+      <div className="h-16 animate-pulse rounded-xl bg-white/[0.035]" />
+      <div className="h-48 animate-pulse rounded-xl bg-white/[0.025]" />
     </div>
-  );
-}
-
-function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {
-  const paths: Record<IconName, React.ReactNode> = {
-    home: (
-      <>
-        <path d="m4 10 8-6 8 6" />
-        <path d="M6.5 9.5V20h11V9.5" />
-      </>
-    ),
-    search: (
-      <>
-        <circle cx="11" cy="11" r="6.5" />
-        <path d="m20 20-4.2-4.2" />
-      </>
-    ),
-    bookmark: <path d="M6 4.75A1.75 1.75 0 0 1 7.75 3h8.5A1.75 1.75 0 0 1 18 4.75V21l-6-3.8L6 21V4.75Z" />,
-    settings: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z" />
-      </>
-    ),
-  };
-
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {paths[name]}
-    </svg>
   );
 }
