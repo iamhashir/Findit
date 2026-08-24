@@ -12,11 +12,13 @@ export function SearchView({
   readSet,
   onOpenArticle,
   onToggleSaved,
+  onOpenSource,
 }: {
   savedSet: Set<Id<"articles">>;
   readSet: Set<Id<"articles">>;
   onOpenArticle: (article: Article) => void;
   onToggleSaved: (id: Id<"articles">) => void;
+  onOpenSource: (sourceId: Id<"sources">) => void;
 }) {
   const [query, setQuery] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function SearchView({
         <div className="rounded-2xl border border-dashed border-white/12 px-5 py-12 text-center">
           <p className="text-sm font-medium text-white/65">Search Findit</p>
           <p className="mt-1 text-xs leading-5 text-white/32">
-            Search story titles and jump directly to matching publications.
+            Search story titles and open source pages without leaving Findit.
           </p>
         </div>
       ) : (
@@ -102,6 +104,7 @@ export function SearchView({
                     read={readSet.has(article._id)}
                     onOpen={onOpenArticle}
                     onToggleSaved={onToggleSaved}
+                    onOpenSource={onOpenSource}
                   />
                 ))}
               </div>
@@ -113,12 +116,11 @@ export function SearchView({
               <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/36">Sources</h2>
               <div className="grid gap-2 sm:grid-cols-2">
                 {matchedSources.map((source) => (
-                  <a
+                  <button
                     key={source._id}
-                    href={source.siteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5 transition hover:border-cyan-300/25 hover:bg-white/[0.06]"
+                    type="button"
+                    onClick={() => onOpenSource(source._id)}
+                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5 text-left transition hover:border-cyan-300/25 hover:bg-white/[0.06]"
                   >
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-xs font-semibold text-cyan-100/75">
                       {source.name.slice(0, 2).toUpperCase()}
@@ -127,8 +129,8 @@ export function SearchView({
                       <p className="truncate text-sm font-medium text-white/82">{source.name}</p>
                       <p className="mt-0.5 text-xs text-white/30">{source.category}</p>
                     </div>
-                    <span className="text-xs text-white/28">↗</span>
-                  </a>
+                    <span className="text-xs text-white/28">→</span>
+                  </button>
                 ))}
               </div>
             </section>
