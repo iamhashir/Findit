@@ -30,6 +30,27 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_enabled", ["enabled"]),
 
+  sourceHealth: defineTable({
+    sourceId: v.id("sources"),
+    lastAttemptAt: v.number(),
+    lastSuccessAt: v.optional(v.number()),
+    lastFailureAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    consecutiveFailures: v.number(),
+    totalRuns: v.number(),
+    successfulRuns: v.number(),
+    totalDiscovered: v.number(),
+    totalCreated: v.number(),
+    totalUpdated: v.number(),
+    totalSkipped: v.number(),
+    lastDiscovered: v.number(),
+    lastCreated: v.number(),
+    lastUpdated: v.number(),
+    lastSkipped: v.number(),
+    lastDurationMs: v.number(),
+    lastNeedsBrowser: v.boolean(),
+  }).index("by_source", ["sourceId"]),
+
   articles: defineTable({
     title: v.string(),
     url: v.string(),
