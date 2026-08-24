@@ -8,6 +8,9 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 - Added editable source management in Settings.
 - Expanded the curated source catalog to 50 technology, AI, research, engineering, infrastructure, security, language, publication, and community sources.
 - Added source quality tiers, priority, descriptions, and coverage tags for curated sources.
+- Added source health tracking for sync attempts, successes, failures, errors, duration, discovered/new/updated/skipped counts, and consecutive failures.
+- Added a source health audit dashboard with Healthy, Attention, Failing, and Unchecked summaries plus health filtering.
+- Added per-source data completeness audits for recent descriptions, authors, extracted content, and images.
 - Added source types for RSS, API, and Web ingestion.
 - Added Cheerio + Mozilla Readability article scraping in Convex.
 - Added dedicated RSS and Atom feed parsing for RSS sources.
@@ -32,8 +35,9 @@ Tracks meaningful product, backend, infrastructure, and architecture changes. Ke
 
 ### Changed
 - Source synchronization now routes RSS sources through their configured feed URLs, Hacker News through its API, and keeps HTML scraping as the fallback for other source types.
+- Every manual and scheduled source sync now updates a shared health record, including failures previously absorbed by full-catalog sync.
 - Manual and scheduled ingestion can now process the full curated catalog in bounded concurrent batches instead of stopping at the first 10 sources.
-- Settings source management now supports source search, category filtering, quality labels, core-source badges, and full-catalog sync.
+- Settings source management now supports source search, category and health filtering, quality labels, core-source badges, expandable audits, and full-catalog sync.
 - Dedicated source pages now use a denser publication-style view with source profiles, coverage tags, quality tier, indexed/latest metrics, date grouping, author metadata, and compact story rows.
 - Primary mobile navigation is now Home, Search, and Saved; Settings moved to the header.
 - Home now clusters matching multi-source coverage while keeping single-source stories as normal feed cards.
