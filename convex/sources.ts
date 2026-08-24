@@ -44,6 +44,10 @@ function sortSources<T extends { name: string; rank?: number }>(sources: T[]) {
   });
 }
 
+function sameStringArray(a: string[] | undefined, b: readonly string[]) {
+  return a?.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 function slugify(value: string) {
   return value
     .trim()
@@ -132,10 +136,26 @@ export const ensureRecommended = mutation({
       };
 
       if (existing) {
-        await ctx.db.patch(existing._id, {
-          ...curatedFields,
-          updatedAt: now,
-        });
+        const needsUpdate =
+          existing.name !== source.name ||
+          existing.siteUrl !== source.siteUrl ||
+          existing.kind !== source.kind ||
+          existing.category !== source.category ||
+          existing.recommended !== true ||
+          existing.rank !== source.rank ||
+          existing.description !== source.description ||
+          existing.quality !== source.quality ||
+          existing.priority !== source.priority ||
+          !sameStringArray(existing.tags, source.tags) ||
+          ("feedUrl" in source && existing.feedUrl !== source.feedUrl) ||
+          ("apiUrl" in source && existing.apiUrl !== source.apiUrl);
+
+        if (needsUpdate) {
+          await ctx.db.patch(existing._id, {
+            ...curatedFields,
+            updatedAt: now,
+          });
+        }
         continue;
       }
 
