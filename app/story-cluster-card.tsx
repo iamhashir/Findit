@@ -1,9 +1,13 @@
 "use client";
 
+import Image from "next/image";
+import { Bookmark, ChevronDown, MessageCircle, MoveUpRight } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 import { formatDate } from "./article-card";
 import type { Article, StoryCluster } from "./article-types";
+import { SourceAvatar } from "./source-avatar";
 
 export function StoryClusterCard({
   cluster,
@@ -24,129 +28,155 @@ export function StoryClusterCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const primary = cluster.primary;
-  const related = cluster.articles.filter((article) => article._id !== primary._id);
-  const hnArticle = cluster.articles.find(isHackerNews);
   const saved = savedSet.has(primary._id);
   const allRead = cluster.articles.every((article) => readSet.has(article._id));
+  const hnArticle = cluster.articles.find(isHackerNews);
 
   return (
-    <article
-      className={`feed-enter group relative overflow-hidden border transition ${
+    <motion.article
+      layout
+      className={`group overflow-hidden border transition-opacity ${
         featured
-          ? "rounded-[1.7rem] border-cyan-200/14 bg-gradient-to-br from-cyan-200/[0.075] via-white/[0.038] to-violet-300/[0.035] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.2)] sm:p-6"
-          : "my-2 rounded-[1.45rem] border-white/[0.08] bg-white/[0.025] p-4 sm:p-5"
-      } ${allRead ? "opacity-65" : "opacity-100"}`}
+          ? "rounded-2xl border-white/[0.09] bg-[#111111]"
+          : "my-2 rounded-xl border-white/[0.075] bg-white/[0.018]"
+      } ${allRead ? "opacity-60" : "opacity-100"}`}
     >
-      {featured ? (
-        <div className="pointer-events-none absolute -right-16 -top-20 size-52 rounded-full bg-cyan-300/[0.08] blur-3xl" />
-      ) : null}
-
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/36">
-            <span className="rounded-full border border-cyan-300/18 bg-cyan-300/[0.08] px-2.5 py-1 font-semibold uppercase tracking-[0.11em] text-cyan-100/72">
-              {featured ? "Developing story" : `${cluster.sourceCount} sources`}
-            </span>
-            {featured ? <span>{cluster.sourceCount} sources</span> : null}
-            {primary.topic ? (
-              <>
+      <div className={featured && primary.imageUrl ? "grid md:grid-cols-[1.18fr_0.82fr]" : ""}>
+        <div className={featured ? "flex min-h-[310px] flex-col p-5 sm:p-7" : "p-4 sm:p-5"}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/33">
+                <span className="rounded-md bg-white/[0.07] px-2 py-1 font-medium text-white/58">
+                  {cluster.sourceCount} sources
+                </span>
+                {primary.topic ? <span>{primary.topic}</span> : null}
                 <span>·</span>
-                <span>{primary.topic}</span>
-              </>
-            ) : null}
-            <span>·</span>
-            <span>{formatDate(cluster.latestAt)}</span>
-          </div>
+                <span>{formatDate(cluster.latestAt)}</span>
+              </div>
 
-          <button type="button" onClick={() => onOpenArticle(primary)} className="mt-3 block w-full text-left">
-            <h3
-              className={`font-semibold tracking-[-0.04em] text-white/93 transition group-hover:text-cyan-50 ${
-                featured ? "text-[1.55rem] leading-[1.15] sm:text-[2rem]" : "text-lg leading-7 sm:text-xl"
+              <button
+                type="button"
+                onClick={() => onOpenArticle(primary)}
+                className={`${featured ? "mt-7 sm:mt-9" : "mt-3"} block w-full text-left`}
+              >
+                <h2
+                  className={`font-bold tracking-[-0.045em] text-white/91 transition group-hover:text-white ${
+                    featured ? "text-[1.75rem] leading-[1.08] sm:text-[2.35rem]" : "text-xl leading-7 sm:text-[1.35rem]"
+                  }`}
+                >
+                  {primary.title}
+                </h2>
+                {primary.description ? (
+                  <p className={`mt-3 text-white/40 ${featured ? "line-clamp-3 text-sm leading-6 sm:text-[15px]" : "line-clamp-2 text-sm leading-5.5"}`}>
+                    {primary.description}
+                  </p>
+                ) : null}
+              </button>
+            </div>
+
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.9 }}
+              onClick={() => onToggleSaved(primary._id)}
+              aria-label={saved ? "Remove primary story from saved" : "Save primary story"}
+              className={`flex size-9 shrink-0 items-center justify-center rounded-lg border transition ${
+                saved
+                  ? "border-white bg-white text-zinc-950"
+                  : "border-white/[0.08] text-white/35 hover:bg-white/[0.06] hover:text-white"
               }`}
             >
-              {primary.title}
-            </h3>
-            {primary.description ? (
-              <p className={`mt-2 text-white/42 ${featured ? "line-clamp-3 text-[14px] leading-6 sm:text-[15px]" : "line-clamp-2 text-sm leading-6"}`}>
-                {primary.description}
-              </p>
-            ) : null}
-          </button>
+              <Bookmark className="size-4" fill={saved ? "currentColor" : "none"} />
+            </motion.button>
+          </div>
+
+          <div className={`${featured ? "mt-auto pt-7" : "mt-4"}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex -space-x-2">
+                {cluster.articles.slice(0, 5).map((article) => (
+                  <button
+                    key={article._id}
+                    type="button"
+                    onClick={() => onOpenSource(article.sourceId)}
+                    title={article.sourceName}
+                    className="rounded-[10px] border-2 border-[#111111] transition hover:z-10 hover:-translate-y-0.5"
+                  >
+                    <SourceAvatar url={article.url} name={article.sourceName} size="sm" />
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {hnArticle && typeof hnArticle.commentCount === "number" ? (
+                  <span className="flex items-center gap-1.5 text-[11px] text-white/30">
+                    <MessageCircle className="size-3.5" /> {hnArticle.commentCount}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onOpenArticle(primary)}
+                  aria-label="Open primary story"
+                  className={`${featured ? "flex" : "hidden sm:flex"} size-9 items-center justify-center rounded-full bg-white text-zinc-950 transition hover:scale-[1.04] hover:bg-zinc-200`}
+                >
+                  <MoveUpRight className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setExpanded((current) => !current)}
+              className="mt-4 flex w-full items-center justify-between border-t border-white/[0.07] pt-3 text-xs font-medium text-white/38 transition hover:text-white/70"
+              aria-expanded={expanded}
+            >
+              <span>{expanded ? "Hide coverage" : `Compare coverage · ${cluster.articles.length}`}</span>
+              <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                <ChevronDown className="size-4" />
+              </motion.span>
+            </button>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onToggleSaved(primary._id)}
-          aria-label={saved ? "Remove primary story from saved" : "Save primary story"}
-          className={`pressable flex size-10 shrink-0 items-center justify-center rounded-2xl border ${
-            saved
-              ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
-              : "border-white/10 bg-black/15 text-white/34 hover:bg-white/[0.06] hover:text-white"
-          }`}
-        >
-          <BookmarkIcon filled={saved} />
-        </button>
-      </div>
-
-      <div className="relative mt-4 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {cluster.articles.slice(0, 4).map((article, index) => (
-          <button
-            key={article._id}
-            type="button"
-            onClick={() => onOpenSource(article.sourceId)}
-            className={`pressable shrink-0 rounded-full border px-2.5 py-1 text-[11px] ${
-              index === 0
-                ? "border-white/12 bg-white/[0.06] font-semibold text-white/65"
-                : "border-white/[0.08] bg-black/10 text-white/38 hover:text-white/68"
-            }`}
-          >
-            {article.sourceName}
-          </button>
-        ))}
-        {cluster.articles.length > 4 ? <span className="shrink-0 text-[11px] text-white/25">+{cluster.articles.length - 4}</span> : null}
-      </div>
-
-      {hnArticle ? (
-        <div className="relative mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200/[0.08] bg-orange-100/[0.025] px-3 py-2 text-[11px] text-orange-50/42">
-          <span className="font-semibold text-orange-50/62">HN</span>
-          {typeof hnArticle.score === "number" ? <span>▲ {hnArticle.score}</span> : null}
-          {typeof hnArticle.commentCount === "number" ? <span>{hnArticle.commentCount} comments</span> : null}
-        </div>
-      ) : null}
-
-      <div className="relative mt-4 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3">
-        <button
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-          className="pressable text-xs font-medium text-white/40 hover:text-white/72"
-          aria-expanded={expanded}
-        >
-          {expanded ? "Hide coverage ↑" : `Compare coverage (${cluster.articles.length})`}
-        </button>
-        <button
-          type="button"
-          onClick={() => onOpenArticle(primary)}
-          className={`pressable text-xs font-semibold ${featured ? "rounded-xl bg-white px-3.5 py-2 text-zinc-950 hover:bg-cyan-100" : "text-cyan-100/62 hover:text-cyan-100"}`}
-        >
-          {featured ? "Open primary →" : "Read primary →"}
-        </button>
-      </div>
-
-      {expanded ? (
-        <div className="relative mt-3 grid gap-2 border-t border-white/[0.06] pt-3">
-          {cluster.articles.map((article) => (
-            <CoverageRow
-              key={article._id}
-              article={article}
-              primary={article._id === primary._id}
-              read={readSet.has(article._id)}
-              onOpenArticle={onOpenArticle}
-              onOpenSource={onOpenSource}
+        {featured && primary.imageUrl ? (
+          <div className="relative min-h-[250px] overflow-hidden border-t border-white/[0.07] md:min-h-full md:border-l md:border-t-0">
+            <Image
+              src={primary.imageUrl}
+              alt=""
+              fill
+              unoptimized
+              priority
+              sizes="(max-width: 768px) 100vw, 380px"
+              className="object-cover transition duration-500 group-hover:scale-[1.025]"
             />
-          ))}
-        </div>
-      ) : null}
-    </article>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+          </div>
+        ) : null}
+      </div>
+
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-white/[0.07] bg-black/15 p-2 sm:p-3">
+              {cluster.articles.map((article) => (
+                <CoverageRow
+                  key={article._id}
+                  article={article}
+                  primary={article._id === primary._id}
+                  read={readSet.has(article._id)}
+                  onOpenArticle={onOpenArticle}
+                  onOpenSource={onOpenSource}
+                />
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.article>
   );
 }
 
@@ -163,52 +193,28 @@ function CoverageRow({
   onOpenArticle: (article: Article) => void;
   onOpenSource: (sourceId: Id<"sources">) => void;
 }) {
-  const discussion = isHackerNews(article);
-
   return (
-    <div className={`rounded-xl border border-white/[0.065] bg-black/15 p-3 ${read ? "opacity-58" : ""}`}>
-      <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.1em] text-white/25">
-        <div className="flex min-w-0 items-center gap-2">
-          <span>{primary ? "Primary" : discussion ? "Discussion" : "Coverage"}</span>
-          <span>·</span>
-          <button
-            type="button"
-            onClick={() => onOpenSource(article.sourceId)}
-            className="truncate normal-case tracking-normal text-white/46 transition hover:text-white/72"
-          >
-            {article.sourceName}
-          </button>
-        </div>
-        <span className="shrink-0 normal-case tracking-normal">{formatDate(article.publishedAt)}</span>
-      </div>
-      <button
-        type="button"
-        onClick={() => onOpenArticle(article)}
-        className="mt-1.5 block w-full text-left text-sm font-medium leading-5 text-white/72 transition hover:text-cyan-100"
-      >
-        {article.title}
+    <div className={`group/row flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-white/[0.04] ${read ? "opacity-55" : ""}`}>
+      <button type="button" onClick={() => onOpenSource(article.sourceId)} className="shrink-0">
+        <SourceAvatar url={article.url} name={article.sourceName} size="sm" />
       </button>
+      <button type="button" onClick={() => onOpenArticle(article)} className="min-w-0 flex-1 text-left">
+        <div className="flex items-center gap-1.5 text-[10px] text-white/28">
+          <span className="font-medium text-white/48">{article.sourceName}</span>
+          <span>·</span>
+          <span>{primary ? "Primary" : isHackerNews(article) ? "Discussion" : "Coverage"}</span>
+          <span>·</span>
+          <span>{formatDate(article.publishedAt)}</span>
+        </div>
+        <p className="mt-1 line-clamp-1 text-sm font-medium text-white/70 transition group-hover/row:text-white">
+          {article.title}
+        </p>
+      </button>
+      <MoveUpRight className="size-4 shrink-0 text-white/18 transition group-hover/row:text-white/48" />
     </div>
   );
 }
 
 function isHackerNews(article: Article) {
   return article.sourceName.toLowerCase().includes("hacker news");
-}
-
-function BookmarkIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 4.75A1.75 1.75 0 0 1 7.75 3h8.5A1.75 1.75 0 0 1 18 4.75V21l-6-3.8L6 21V4.75Z" />
-    </svg>
-  );
 }
