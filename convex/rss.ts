@@ -7,7 +7,7 @@ import { internalAction } from "./_generated/server";
 
 const USER_AGENT =
   "FinditBot/0.1 (+https://findit-gamma-steel.vercel.app; tech-news-indexer)";
-const MAX_CONTENT_CHARS = 40_000;
+const SUMMARY_LIMIT = 600;
 
 const syncResultValidator = v.object({
   sourceId: v.id("sources"),
@@ -16,73 +16,56 @@ const syncResultValidator = v.object({
   processed: v.number(),
   created: v.number(),
   updated: v.number(),
+  unchanged: v.number(),
   skipped: v.number(),
   needsBrowser: v.boolean(),
+  qualitySampleSize: v.number(),
+  latestArticleAt: v.optional(v.number()),
+  missingDescriptionRate: v.number(),
+  missingAuthorRate: v.number(),
+  missingImageRate: v.number(),
 });
 
 export const syncSource = internalAction({
   args: {
     sourceId: v.id("sources"),
+    sourceName: v.string(),
+    feedUrl: v.string(),
+    category: v.string(),
     maxArticles: v.optional(v.number()),
   },
   returns: syncResultValidator,
   handler: async (ctx, args) => {
-    const source = await ctx.runQuery(internal.sources.getByIdInternal, {
-      id: args.sourceId,
-    });
-    if (!source) throw new Error("Source not found.");
-    if (source.kind !== "rss") throw new Error("Source is not configured as RSS.");
-
-    const feedUrl = source.feedUrl?.trim();
+    const feedUrl = args.feedUrl.trim();
     if (!feedUrl) throw new Error("RSS source is missing feedUrl.");
 
     const xml = await fetchFeed(feedUrl);
-    const entries = parseFeed(xml, feedUrl, bounded(args.maxArticles ?? 8, 1, 25));
-
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
-    let processed = 0;
-
-    for (const entry of entries) {
-      try {
-        processed += 1;
-        if (!entry.title || !entry.url) {
-          skipped += 1;
-          continue;
-        }
-
-        const stored = await ctx.runMutation(internal.articles.upsertScraped, {
-          sourceId: source._id,
-          sourceName: source.name,
-          title: entry.title,
-          url: entry.url,
-          canonicalUrl: entry.url,
-          publishedAt: entry.publishedAt,
-          description: entry.description,
-          externalId: entry.externalId,
-          author: entry.author,
-          imageUrl: entry.imageUrl,
-          content: entry.content,
-          topic: source.category,
-        });
-
-        if (stored.created) created += 1;
-        else updated += 1;
-      } catch {
-        skipped += 1;
-      }
-    }
+    const entries = parseFeed(xml, feedUrl, bounded(args.maxArticles ?? 6, 1, 15));
+    const stored = await ctx.runMutation(internal.articles.ingestBatch, {
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
+      entries: entries.map((entry) => ({
+        ...entry,
+        canonicalUrl: entry.url,
+        topic: args.category,
+      })),
+    });
 
     return {
-      sourceId: source._id,
-      sourceName: source.name,
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
       discovered: entries.length,
-      processed,
-      created,
-      updated,
-      skipped,
+      processed: entries.length,
+      created: stored.created,
+      updated: stored.updated,
+      unchanged: stored.unchanged,
+      skipped: 0,
       needsBrowser: false,
+      qualitySampleSize: stored.qualitySampleSize,
+      ...(stored.latestArticleAt ? { latestArticleAt: stored.latestArticleAt } : {}),
+      missingDescriptionRate: stored.missingDescriptionRate,
+      missingAuthorRate: stored.missingAuthorRate,
+      missingImageRate: stored.missingImageRate,
     };
   },
 });
@@ -118,7 +101,6 @@ type FeedEntry = {
   externalId?: string;
   author?: string;
   imageUrl?: string;
-  content?: string;
 };
 
 function parseFeed(xml: string, feedUrl: string, limit: number): FeedEntry[] {
@@ -140,8 +122,6 @@ function parseFeed(xml: string, feedUrl: string, limit: number): FeedEntry[] {
     const descriptionRaw = firstNonEmpty(
       node.find("description").first().text(),
       node.find("summary").first().text(),
-    );
-    const contentRaw = firstNonEmpty(
       node.find("content\\:encoded").first().text(),
       node.find("content").first().text(),
     );
@@ -169,18 +149,18 @@ function parseFeed(xml: string, feedUrl: string, limit: number): FeedEntry[] {
       feedUrl,
     );
 
-    const description = descriptionRaw ? stripMarkup(descriptionRaw).slice(0, 2_000) : undefined;
-    const content = contentRaw ? stripMarkup(contentRaw).slice(0, MAX_CONTENT_CHARS) : undefined;
+    const description = descriptionRaw
+      ? stripMarkup(descriptionRaw).slice(0, SUMMARY_LIMIT)
+      : undefined;
 
     entries.push({
       title: title.slice(0, 500),
       url,
       publishedAt: parseDate(publishedRaw) ?? Date.now(),
       description: description || undefined,
-      externalId: externalId?.slice(0, 1_000),
-      author: authorRaw ? cleanText(authorRaw).slice(0, 300) : undefined,
+      externalId: externalId?.slice(0, 500),
+      author: authorRaw ? cleanText(authorRaw).slice(0, 200) : undefined,
       imageUrl,
-      content: content && content.length >= 120 ? content : undefined,
     });
   });
 
@@ -195,7 +175,7 @@ function normalizeUrl(value: string | undefined, baseUrl: string) {
   if (!value) return undefined;
   try {
     const url = new URL(value.trim(), baseUrl);
-    if (!['http:', 'https:'].includes(url.protocol)) return undefined;
+    if (!["http:", "https:"].includes(url.protocol)) return undefined;
     url.hash = "";
     for (const key of [...url.searchParams.keys()]) {
       if (key.startsWith("utm_") || ["ref", "source", "fbclid", "gclid"].includes(key)) {
