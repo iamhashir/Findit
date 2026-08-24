@@ -44,12 +44,7 @@ export function MainApp({ view }: { view: MainView }) {
   const headerView: HeaderView = settingsOpen ? "settings" : view;
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[#050607] text-white">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-36 -top-32 size-80 rounded-full bg-cyan-300/[0.055] blur-[110px]" />
-        <div className="absolute -right-36 top-1/3 size-80 rounded-full bg-violet-400/[0.045] blur-[120px]" />
-      </div>
-
+    <main className="app-canvas relative min-h-screen overflow-x-hidden text-white">
       <div className="relative mx-auto min-h-screen w-full max-w-5xl px-4 pb-32 sm:px-6 lg:px-8">
         <AppHeader
           view={headerView}
@@ -57,8 +52,8 @@ export function MainApp({ view }: { view: MainView }) {
           onBack={() => setSettingsOpen(false)}
         />
 
-        <div className="mx-auto max-w-3xl py-4 sm:py-7">
-          {!settingsOpen && view === "home" && (
+        <div className="page-enter mx-auto max-w-3xl py-5 sm:py-8">
+          {!settingsOpen && view === "home" ? (
             <HomeView
               savedSet={reading.savedSet}
               readSet={reading.readSet}
@@ -66,19 +61,17 @@ export function MainApp({ view }: { view: MainView }) {
               onToggleSaved={reading.toggleSaved}
               onOpenSource={openSource}
             />
-          )}
-          {!settingsOpen && view === "search" && (
-            <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-4 sm:p-5">
-              <SearchView
-                savedSet={reading.savedSet}
-                readSet={reading.readSet}
-                onOpenArticle={openArticle}
-                onToggleSaved={reading.toggleSaved}
-                onOpenSource={openSource}
-              />
-            </section>
-          )}
-          {!settingsOpen && view === "saved" && (
+          ) : null}
+          {!settingsOpen && view === "search" ? (
+            <SearchView
+              savedSet={reading.savedSet}
+              readSet={reading.readSet}
+              onOpenArticle={openArticle}
+              onToggleSaved={reading.toggleSaved}
+              onOpenSource={openSource}
+            />
+          ) : null}
+          {!settingsOpen && view === "saved" ? (
             <SavedView
               savedIds={reading.savedIds}
               savedSet={reading.savedSet}
@@ -87,14 +80,12 @@ export function MainApp({ view }: { view: MainView }) {
               onToggleSaved={reading.toggleSaved}
               onOpenSource={openSource}
             />
-          )}
-          {settingsOpen && <SourceManager />}
+          ) : null}
+          {settingsOpen ? <SourceManager /> : null}
         </div>
       </div>
 
-      {!settingsOpen && (
-        <BottomNav activeView={view} savedCount={reading.savedIds.length} />
-      )}
+      {!settingsOpen ? <BottomNav activeView={view} savedCount={reading.savedIds.length} /> : null}
     </main>
   );
 }
@@ -112,35 +103,47 @@ function AppHeader({
     view === "home" ? "Findit" : view === "search" ? "Search" : view === "saved" ? "Saved" : "Settings";
 
   return (
-    <header className="sticky top-0 z-30 -mx-4 border-b border-white/[0.07] bg-[#050607]/86 px-4 py-3.5 backdrop-blur-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <header className="sticky top-0 z-30 -mx-4 border-b border-white/[0.065] bg-[#070809]/82 px-4 py-3 backdrop-blur-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          {view === "settings" && (
+        <div className="flex min-w-0 items-center gap-2.5">
+          {view === "settings" ? (
             <button
               type="button"
               onClick={onBack}
               aria-label="Back"
-              className="flex size-9 items-center justify-center rounded-xl border border-white/10 text-white/55 transition hover:bg-white/[0.05] hover:text-white"
+              className="pressable flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.025] text-white/58 hover:bg-white/[0.06] hover:text-white"
             >
               ←
             </button>
+          ) : null}
+
+          {view === "home" ? (
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex size-8 items-center justify-center rounded-xl border border-cyan-200/15 bg-cyan-300/[0.08] shadow-[0_0_32px_rgba(103,232,249,0.08)]">
+                <span className="size-2 rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(103,232,249,0.85)]" />
+              </div>
+              <div>
+                <h1 className="truncate text-xl font-semibold tracking-[-0.045em] text-white/95">{title}</h1>
+                <p className="-mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">
+                  Signals for builders
+                </p>
+              </div>
+            </div>
+          ) : (
+            <h1 className="truncate text-xl font-semibold tracking-[-0.04em] text-white/94">{title}</h1>
           )}
-          <h1 className="truncate text-xl font-semibold tracking-[-0.04em]">{title}</h1>
         </div>
 
-        {view !== "settings" && (
-          <div className="flex items-center gap-2">
-            <div className="size-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.7)]" />
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              aria-label="Open Settings"
-              className="flex size-9 items-center justify-center rounded-xl border border-white/10 text-white/42 transition hover:bg-white/[0.05] hover:text-white"
-            >
-              <Icon name="settings" className="size-4" />
-            </button>
-          </div>
-        )}
+        {view !== "settings" ? (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="Open Settings"
+            className="pressable flex size-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] text-white/42 shadow-[0_8px_30px_rgba(0,0,0,0.18)] hover:border-white/16 hover:bg-white/[0.06] hover:text-white"
+          >
+            <Icon name="settings" className="size-[17px]" />
+          </button>
+        ) : null}
       </div>
     </header>
   );
@@ -170,35 +173,47 @@ function HomeView({
   }, [sources]);
 
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
-          <FeedTab active={mode === "latest"} label="Latest" onClick={() => setMode("latest")} />
-          <FeedTab active={mode === "trending"} label="Trending" onClick={() => setMode("trending")} />
+    <section className="space-y-5">
+      <div className="flex items-end justify-between gap-4 px-1 pt-1">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/55">
+            <span className="size-1.5 rounded-full bg-cyan-300" />
+            Live feed
+          </div>
+          <h2 className="mt-1.5 text-[1.7rem] font-semibold leading-tight tracking-[-0.045em] text-white/94 sm:text-3xl">
+            What matters now
+          </h2>
         </div>
-        <button
-          type="button"
-          onClick={() => setUnreadOnly((current) => !current)}
-          className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-            unreadOnly
-              ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-100"
-              : "border-white/10 text-white/40 hover:text-white/70"
-          }`}
-        >
-          Unread
-        </button>
+        <p className="hidden max-w-[14rem] text-right text-xs leading-5 text-white/28 sm:block">
+          Source-first technology, AI and engineering coverage.
+        </p>
       </div>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <TopicChip active={topic === null} label="All" onClick={() => setTopic(null)} />
-        {topics.map((item) => (
-          <TopicChip
-            key={item}
-            active={topic === item}
-            label={item}
-            onClick={() => setTopic(item)}
-          />
-        ))}
+      <div className="glass-panel sticky top-[65px] z-20 -mx-1 rounded-[1.35rem] p-2.5 sm:mx-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex rounded-xl bg-black/25 p-1">
+            <FeedTab active={mode === "latest"} label="Latest" onClick={() => setMode("latest")} />
+            <FeedTab active={mode === "trending"} label="Trending" onClick={() => setMode("trending")} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setUnreadOnly((current) => !current)}
+            className={`pressable rounded-xl border px-3 py-2 text-xs font-medium ${
+              unreadOnly
+                ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"
+                : "border-white/8 bg-white/[0.025] text-white/42 hover:bg-white/[0.05] hover:text-white/70"
+            }`}
+          >
+            {unreadOnly ? "Unread only" : "Unread"}
+          </button>
+        </div>
+
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TopicChip active={topic === null} label="Everything" onClick={() => setTopic(null)} />
+          {topics.map((item) => (
+            <TopicChip key={item} active={topic === item} label={item} onClick={() => setTopic(item)} />
+          ))}
+        </div>
       </div>
 
       <ArticleFeed
@@ -220,8 +235,10 @@ function FeedTab({ active, label, onClick }: { active: boolean; label: string; o
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-        active ? "bg-white text-zinc-950" : "text-white/38 hover:text-white/70"
+      className={`pressable rounded-lg px-4 py-2 text-xs font-semibold ${
+        active
+          ? "bg-white/[0.11] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+          : "text-white/35 hover:text-white/70"
       }`}
     >
       {label}
@@ -234,10 +251,10 @@ function TopicChip({ active, label, onClick }: { active: boolean; label: string;
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+      className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium ${
         active
-          ? "border-cyan-300/40 bg-cyan-300 text-zinc-950"
-          : "border-white/10 bg-white/[0.03] text-white/42 hover:text-white/70"
+          ? "bg-cyan-300 text-zinc-950 shadow-[0_4px_18px_rgba(103,232,249,0.12)]"
+          : "border border-white/[0.07] bg-white/[0.025] text-white/38 hover:bg-white/[0.05] hover:text-white/70"
       }`}
     >
       {label}
@@ -254,7 +271,7 @@ function BottomNav({ activeView, savedCount }: { activeView: MainView; savedCoun
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
-      <div className="mx-auto grid max-w-md grid-cols-3 rounded-[1.65rem] border border-white/10 bg-[#101214]/94 p-1.5 shadow-[0_-18px_55px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+      <div className="glass-panel mx-auto grid max-w-sm grid-cols-3 rounded-[1.6rem] p-1.5 shadow-[0_-18px_60px_rgba(0,0,0,0.34)]">
         {items.map((item) => {
           const active = item.view === activeView;
           return (
@@ -262,21 +279,20 @@ function BottomNav({ activeView, savedCount }: { activeView: MainView; savedCoun
               key={item.view}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-[1.3rem] text-[10px] font-medium transition ${
-                active ? "bg-white text-zinc-950" : "text-white/35 hover:bg-white/[0.04] hover:text-white/70"
+              className={`pressable relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-[1.25rem] text-[10px] font-semibold ${
+                active
+                  ? "bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]"
+                  : "text-white/32 hover:bg-white/[0.04] hover:text-white/65"
               }`}
             >
               <Icon name={item.icon} className="size-[18px]" />
               {item.label}
-              {item.view === "saved" && savedCount > 0 && (
-                <span
-                  className={`absolute right-[28%] top-2 min-w-4 rounded-full px-1 text-[9px] leading-4 ${
-                    active ? "bg-zinc-900 text-white" : "bg-cyan-300 text-zinc-950"
-                  }`}
-                >
+              {active ? <span className="absolute bottom-1.5 h-0.5 w-4 rounded-full bg-cyan-300/70" /> : null}
+              {item.view === "saved" && savedCount > 0 ? (
+                <span className="absolute right-[25%] top-2 min-w-4 rounded-full bg-cyan-300 px-1 text-[9px] font-bold leading-4 text-zinc-950">
                   {savedCount > 99 ? "99+" : savedCount}
                 </span>
-              )}
+              ) : null}
             </Link>
           );
         })}
