@@ -76,6 +76,33 @@ export const listTrending = query({
   },
 });
 
+export const listBySource = query({
+  args: {
+    sourceId: v.id("sources"),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    articles: v.array(articleValidator),
+    articleCount: v.number(),
+    countCapped: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const limit = bounded(args.limit ?? 40, 1, 100);
+    const sample = await ctx.db
+      .query("articles")
+      .withIndex("by_source", (q) => q.eq("sourceId", args.sourceId))
+      .order("desc")
+      .take(500);
+
+    const sorted = sample.sort((a, b) => b.publishedAt - a.publishedAt);
+    return {
+      articles: sorted.slice(0, limit),
+      articleCount: sample.length,
+      countCapped: sample.length === 500,
+    };
+  },
+});
+
 export const search = query({
   args: {
     query: v.string(),
