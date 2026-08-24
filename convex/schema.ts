@@ -29,6 +29,11 @@ export default defineSchema({
     topic: v.optional(v.string()),
     description: v.optional(v.string()),
     externalId: v.optional(v.string()),
+    author: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    content: v.optional(v.string()),
+    canonicalUrl: v.optional(v.string()),
+    scrapedAt: v.optional(v.number()),
   })
     .index("by_url", ["url"])
     .index("by_source", ["sourceId"])
