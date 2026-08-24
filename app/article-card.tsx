@@ -1,7 +1,17 @@
 "use client";
 
+import Image from "next/image";
+import {
+  ArrowUpRight,
+  Bookmark,
+  MessageCircle,
+  MoveUpRight,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { useState } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 import type { Article } from "./article-types";
+import { SourceAvatar } from "./source-avatar";
 
 export function ArticleCard({
   article,
@@ -22,182 +32,214 @@ export function ArticleCard({
 }) {
   if (featured) {
     return (
-      <article
-        className={`feed-enter group relative overflow-hidden rounded-[1.7rem] border border-cyan-200/12 bg-gradient-to-br from-cyan-200/[0.07] via-white/[0.035] to-violet-300/[0.035] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.2)] sm:p-6 ${
-          read ? "opacity-70" : "opacity-100"
-        }`}
+      <motion.article
+        layout
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`group overflow-hidden rounded-2xl border border-white/[0.085] bg-[#111111] ${read ? "opacity-70" : "opacity-100"}`}
       >
-        <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-cyan-300/[0.07] blur-3xl" />
+        <div className={article.imageUrl ? "grid md:grid-cols-[1.18fr_0.82fr]" : ""}>
+          <div className="flex min-h-[300px] flex-col p-5 sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() => onOpenSource?.(article.sourceId)}
+                disabled={!onOpenSource}
+                className="flex min-w-0 items-center gap-2.5 text-left disabled:cursor-default"
+              >
+                <SourceAvatar url={article.url} name={article.sourceName} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-white/72">{article.sourceName}</p>
+                  <p className="mt-0.5 text-[11px] text-white/32">{formatDate(article.publishedAt)}</p>
+                </div>
+              </button>
 
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/38">
-              <span className="rounded-full border border-cyan-200/15 bg-cyan-200/[0.07] px-2.5 py-1 font-semibold uppercase tracking-[0.12em] text-cyan-100/70">
-                Lead story
-              </span>
-              {article.topic ? <span>{article.topic}</span> : null}
-              <span>·</span>
-              <span>{formatDate(article.publishedAt)}</span>
+              <SaveButton saved={saved} onClick={() => onToggleSaved(article._id)} />
             </div>
 
-            <button type="button" onClick={() => onOpen(article)} className="mt-4 block w-full text-left">
-              <h3 className="max-w-2xl text-[1.55rem] font-semibold leading-[1.15] tracking-[-0.045em] text-white/95 transition group-hover:text-cyan-50 sm:text-[2rem]">
+            <button type="button" onClick={() => onOpen(article)} className="mt-8 block text-left sm:mt-10">
+              {article.topic ? (
+                <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/36">{article.topic}</span>
+              ) : null}
+              <h2 className="mt-2 max-w-3xl text-[1.75rem] font-bold leading-[1.08] tracking-[-0.052em] text-white transition group-hover:text-white/82 sm:text-[2.35rem]">
                 {article.title}
-              </h3>
+              </h2>
               {article.description ? (
-                <p className="mt-3 line-clamp-3 max-w-2xl text-[14px] leading-6 text-white/48 sm:text-[15px]">
+                <p className="mt-4 line-clamp-3 max-w-2xl text-sm leading-6 text-white/45 sm:text-[15px]">
                   {article.description}
                 </p>
               ) : null}
             </button>
+
+            <div className="mt-auto flex items-end justify-between gap-4 pt-8">
+              <ArticleMeta article={article} read={read} />
+              <button
+                type="button"
+                onClick={() => onOpen(article)}
+                className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-zinc-950 transition hover:scale-[1.04] hover:bg-zinc-200"
+                aria-label={`Open ${article.title}`}
+              >
+                <MoveUpRight className="size-4" strokeWidth={2.2} />
+              </button>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onToggleSaved(article._id)}
-            aria-label={saved ? "Remove from saved" : "Save article"}
-            className={`pressable flex size-10 shrink-0 items-center justify-center rounded-2xl border ${
-              saved
-                ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
-                : "border-white/10 bg-black/15 text-white/34 hover:bg-white/[0.06] hover:text-white"
-            }`}
-          >
-            <BookmarkIcon filled={saved} />
-          </button>
+          {article.imageUrl ? (
+            <ArticleImage
+              src={article.imageUrl}
+              alt=""
+              priority
+              className="relative min-h-[250px] border-t border-white/[0.07] md:min-h-full md:border-l md:border-t-0"
+            />
+          ) : null}
         </div>
-
-        <div className="relative mt-5 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-4">
-          <button
-            type="button"
-            onClick={() => onOpenSource?.(article.sourceId)}
-            disabled={!onOpenSource}
-            className="pressable flex min-w-0 items-center gap-2.5 rounded-xl text-left disabled:cursor-default"
-          >
-            <SourceMark name={article.sourceName} />
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-white/68">{article.sourceName}</p>
-              <p className="mt-0.5 text-[10px] text-white/28">
-                {article.author ? article.author : read ? "Read" : "Original coverage"}
-              </p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onOpen(article)}
-            className="pressable rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-zinc-950 hover:bg-cyan-100"
-          >
-            Open story →
-          </button>
-        </div>
-      </article>
+      </motion.article>
     );
   }
 
   return (
-    <article
-      className={`group border-b border-white/[0.065] px-1 py-4.5 transition sm:px-2 ${
-        read ? "opacity-58" : "opacity-100"
-      }`}
+    <motion.article
+      layout
+      className={`group border-b border-white/[0.07] py-5 transition-opacity ${read ? "opacity-55" : "opacity-100"}`}
     >
-      <div className="flex items-start gap-3.5">
-        <SourceMark name={article.sourceName} compact />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-white/32">
-            {onOpenSource ? (
-              <button
-                type="button"
-                onClick={() => onOpenSource(article.sourceId)}
-                className="font-semibold text-white/55 transition hover:text-cyan-100"
-              >
-                {article.sourceName}
-              </button>
-            ) : (
-              <span className="font-semibold text-white/55">{article.sourceName}</span>
-            )}
-            <span>·</span>
-            <span>{formatDate(article.publishedAt)}</span>
-            {article.topic ? (
-              <>
+      <div className={article.imageUrl ? "grid gap-4 sm:grid-cols-[1fr_164px]" : ""}>
+        <div className="min-w-0">
+          <div className="flex items-start gap-3">
+            <SourceAvatar url={article.url} name={article.sourceName} size="sm" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-white/32">
+                {onOpenSource ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenSource(article.sourceId)}
+                    className="font-semibold text-white/58 transition hover:text-white"
+                  >
+                    {article.sourceName}
+                  </button>
+                ) : (
+                  <span className="font-semibold text-white/58">{article.sourceName}</span>
+                )}
                 <span>·</span>
-                <span>{article.topic}</span>
-              </>
-            ) : null}
-          </div>
+                <span>{formatDate(article.publishedAt)}</span>
+                {article.topic ? (
+                  <>
+                    <span>·</span>
+                    <span>{article.topic}</span>
+                  </>
+                ) : null}
+              </div>
 
-          <button type="button" onClick={() => onOpen(article)} className="mt-1.5 block w-full text-left">
-            <h3 className="text-[16px] font-semibold leading-6 tracking-[-0.025em] text-white/88 transition group-hover:text-cyan-50 sm:text-[17px]">
-              {article.title}
-            </h3>
-            {article.description ? (
-              <p className="mt-1.5 line-clamp-2 text-[13px] leading-5.5 text-white/38 sm:text-sm">
-                {article.description}
-              </p>
-            ) : null}
-          </button>
+              <button type="button" onClick={() => onOpen(article)} className="mt-2 block w-full text-left">
+                <h3 className="text-[17px] font-semibold leading-[1.35] tracking-[-0.028em] text-white/88 transition group-hover:text-white sm:text-[18px]">
+                  {article.title}
+                </h3>
+                {article.description ? (
+                  <p className="mt-2 line-clamp-2 text-[13px] leading-5.5 text-white/38 sm:text-sm">
+                    {article.description}
+                  </p>
+                ) : null}
+              </button>
 
-          <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-white/28">
-            <div className="flex min-w-0 items-center gap-3">
-              {article.author ? <span className="max-w-40 truncate">{article.author}</span> : null}
-              {typeof article.score === "number" ? <span>▲ {article.score}</span> : null}
-              {typeof article.commentCount === "number" ? <span>{article.commentCount} comments</span> : null}
-              {read ? <span>Read</span> : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onToggleSaved(article._id)}
-                aria-label={saved ? "Remove from saved" : "Save article"}
-                className={`pressable flex size-8 items-center justify-center rounded-xl ${
-                  saved ? "bg-cyan-300/10 text-cyan-100" : "text-white/28 hover:bg-white/[0.05] hover:text-white/65"
-                }`}
-              >
-                <BookmarkIcon filled={saved} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpen(article)}
-                aria-label={`Read ${article.title}`}
-                className="pressable flex size-8 items-center justify-center rounded-xl text-white/30 hover:bg-white/[0.05] hover:text-white/70"
-              >
-                →
-              </button>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <ArticleMeta article={article} read={read} />
+                <div className="flex items-center gap-0.5 opacity-70 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open original article"
+                    className="flex size-8 items-center justify-center rounded-lg text-white/32 transition hover:bg-white/[0.055] hover:text-white"
+                  >
+                    <ArrowUpRight className="size-4" />
+                  </a>
+                  <SaveButton saved={saved} compact onClick={() => onToggleSaved(article._id)} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {article.imageUrl ? (
+          <button type="button" onClick={() => onOpen(article)} className="hidden sm:block">
+            <ArticleImage
+              src={article.imageUrl}
+              alt=""
+              className="relative h-[112px] overflow-hidden rounded-xl border border-white/[0.07]"
+            />
+          </button>
+        ) : null}
       </div>
-    </article>
+    </motion.article>
   );
 }
 
-function SourceMark({ name, compact = false }: { name: string; compact?: boolean }) {
+function ArticleMeta({ article, read }: { article: Article; read: boolean }) {
   return (
-    <div
-      aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center border border-white/[0.08] bg-gradient-to-br from-white/[0.08] to-white/[0.025] font-bold tracking-[-0.02em] text-cyan-50/68 ${
-        compact ? "mt-0.5 size-8 rounded-xl text-[9px]" : "size-10 rounded-[0.9rem] text-[10px]"
-      }`}
-    >
-      {name.slice(0, 2).toUpperCase()}
+    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/28">
+      {article.author ? <span className="max-w-44 truncate">{article.author}</span> : null}
+      {typeof article.score === "number" ? <span>▲ {article.score}</span> : null}
+      {typeof article.commentCount === "number" ? (
+        <span className="flex items-center gap-1">
+          <MessageCircle className="size-3" /> {article.commentCount}
+        </span>
+      ) : null}
+      {read ? <span>Read</span> : null}
     </div>
   );
 }
 
-function BookmarkIcon({ filled }: { filled: boolean }) {
+function SaveButton({
+  saved,
+  compact = false,
+  onClick,
+}: {
+  saved: boolean;
+  compact?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      aria-label={saved ? "Remove from saved" : "Save article"}
+      className={`flex shrink-0 items-center justify-center transition ${
+        compact ? "size-8 rounded-lg" : "size-9 rounded-lg border border-white/[0.08]"
+      } ${saved ? "bg-white text-zinc-950" : "text-white/36 hover:bg-white/[0.06] hover:text-white"}`}
     >
-      <path d="M6 4.75A1.75 1.75 0 0 1 7.75 3h8.5A1.75 1.75 0 0 1 18 4.75V21l-6-3.8L6 21V4.75Z" />
-    </svg>
+      <Bookmark className={compact ? "size-4" : "size-[17px]"} fill={saved ? "currentColor" : "none"} />
+    </motion.button>
+  );
+}
+
+function ArticleImage({
+  src,
+  alt,
+  className,
+  priority = false,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+  priority?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+
+  return (
+    <div className={className}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        unoptimized
+        priority={priority}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 40vw, 360px"
+        onError={() => setFailed(true)}
+        className="object-cover transition duration-500 group-hover:scale-[1.025]"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+    </div>
   );
 }
 
