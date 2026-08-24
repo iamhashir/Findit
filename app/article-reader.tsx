@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type UIEvent } from "react";
+import { useState } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 import type { Article } from "./article-types";
 
@@ -18,11 +18,7 @@ export function ArticleReader({
   onOpenSource?: () => void;
 }) {
   const [shared, setShared] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const body = article.content?.trim() || article.description?.trim();
-  const readingMinutes = body
-    ? Math.max(1, Math.ceil(body.split(/\s+/).filter(Boolean).length / 220))
-    : null;
+  const highlight = article.description?.trim();
 
   async function share() {
     const url = window.location.href;
@@ -39,21 +35,10 @@ export function ArticleReader({
     }
   }
 
-  function updateProgress(event: UIEvent<HTMLDivElement>) {
-    const target = event.currentTarget;
-    const scrollable = target.scrollHeight - target.clientHeight;
-    setProgress(scrollable > 0 ? Math.min(1, target.scrollTop / scrollable) : 1);
-  }
-
   return (
     <div className="app-canvas fixed inset-0 z-[70] text-white">
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col">
         <header className="relative z-20 flex shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#070809]/86 px-4 py-3 backdrop-blur-2xl sm:px-6">
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-[-1px] h-[2px] origin-left bg-cyan-300/75 transition-transform duration-150"
-            style={{ transform: `scaleX(${progress})` }}
-          />
           <button
             type="button"
             onClick={onClose}
@@ -83,7 +68,7 @@ export function ArticleReader({
           </div>
         </header>
 
-        <div onScroll={updateProgress} className="flex-1 overflow-y-auto overscroll-contain px-5 pb-20 pt-8 sm:px-8 sm:pt-12">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-20 pt-8 sm:px-8 sm:pt-12">
           <article className="page-enter mx-auto max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/32">
               {onOpenSource ? (
@@ -109,7 +94,6 @@ export function ArticleReader({
 
             <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/34 sm:text-sm">
               {article.author ? <span className="font-medium text-white/48">By {article.author}</span> : null}
-              {readingMinutes ? <span>{readingMinutes} min read</span> : null}
               {typeof article.score === "number" ? <span>▲ {article.score}</span> : null}
               {typeof article.commentCount === "number" ? <span>{article.commentCount} comments</span> : null}
             </div>
@@ -122,24 +106,18 @@ export function ArticleReader({
               />
             ) : null}
 
-            {body ? (
-              <div className="mt-9 text-[16px] leading-[1.9] text-white/70 sm:text-[17px]">
-                {body.split(/\n{2,}/).map((paragraph, index) => (
-                  <p key={`${index}-${paragraph.slice(0, 24)}`} className="mb-6 last:mb-0">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-9 rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.018] p-5 text-sm leading-6 text-white/40">
-                <p className="font-medium text-white/58">Reader text is unavailable for this source.</p>
-                <p className="mt-1">
-                  Findit has the story metadata. Open the original publication to continue reading.
+            <section className="mt-9 rounded-[1.55rem] border border-white/[0.08] bg-white/[0.022] p-5 sm:p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-100/55">Highlight</p>
+              {highlight ? (
+                <p className="mt-3 text-[16px] leading-8 text-white/70 sm:text-[17px]">{highlight}</p>
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-white/40">
+                  This source did not publish a useful summary. Open the original story for the full context.
                 </p>
-              </div>
-            )}
+              )}
+            </section>
 
-            <div className="mt-12 rounded-[1.6rem] border border-white/[0.08] bg-gradient-to-br from-cyan-200/[0.055] to-white/[0.018] p-5 sm:p-6">
+            <div className="mt-6 rounded-[1.6rem] border border-white/[0.08] bg-gradient-to-br from-cyan-200/[0.055] to-white/[0.018] p-5 sm:p-6">
               <div className="flex items-start gap-3">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-[10px] font-bold text-cyan-50/65">
                   {article.sourceName.slice(0, 2).toUpperCase()}
@@ -148,7 +126,7 @@ export function ArticleReader({
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/30">Original source</p>
                   <p className="mt-1 truncate text-sm font-semibold text-white/70">{article.sourceName}</p>
                   <p className="mt-1 text-xs leading-5 text-white/28">
-                    Continue on the publisher’s site for the canonical story, updates and source context.
+                    Findit keeps the signal lightweight. Read the canonical publication for the full story and updates.
                   </p>
                 </div>
               </div>
@@ -158,7 +136,7 @@ export function ArticleReader({
                 rel="noreferrer"
                 className="pressable mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-zinc-950 hover:bg-cyan-100"
               >
-                View original ↗
+                Read original ↗
               </a>
             </div>
           </article>
