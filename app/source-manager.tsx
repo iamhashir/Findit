@@ -41,13 +41,13 @@ type ScrapeResult = {
 };
 
 const scraperApi = {
-  scrapeSource: (anyApi as any).scraper.scrapeSource as FunctionReference<
+  scrapeSource: (anyApi as any).ingestion.syncSource as FunctionReference<
     "action",
     "public",
     { sourceId: Id<"sources">; maxArticles?: number },
     ScrapeResult
   >,
-  scrapeAll: (anyApi as any).scraper.scrapeAll as FunctionReference<
+  scrapeAll: (anyApi as any).ingestion.syncAll as FunctionReference<
     "action",
     "public",
     { maxSources?: number; maxArticlesPerSource?: number },
