@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 
 type SourceKind = "rss" | "api" | "web";
+type SourceQuality = "primary" | "expert" | "publication" | "community";
 
 type Source = {
   _id: Id<"sources">;
@@ -18,6 +19,10 @@ type Source = {
   category: string;
   enabled: boolean;
   recommended?: boolean;
+  description?: string;
+  tags?: string[];
+  quality?: SourceQuality;
+  priority?: number;
 };
 
 type Draft = {
@@ -81,16 +86,32 @@ export function SourceManager() {
   const [syncingAll, setSyncingAll] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [sourceQuery, setSourceQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
 
   useEffect(() => {
     if (sources === undefined || bootstrapped.current) return;
-    if (sources.filter((source) => source.recommended).length >= 10) return;
-
     bootstrapped.current = true;
     void ensureRecommended({}).catch(() => {
       bootstrapped.current = false;
     });
   }, [ensureRecommended, sources]);
+
+  const categories = useMemo(() => {
+    if (!sources) return [];
+    return Array.from(new Set(sources.map((source) => source.category))).sort();
+  }, [sources]);
+
+  const visibleSources = useMemo(() => {
+    if (!sources) return [];
+    const needle = sourceQuery.trim().toLowerCase();
+    return sources.filter((source) => {
+      if (categoryFilter !== "All" && source.category !== categoryFilter) return false;
+      if (!needle) return true;
+      const haystack = [source.name, source.category, ...(source.tags ?? [])].join(" ").toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [categoryFilter, sourceQuery, sources]);
 
   function startAdd() {
     setError("");
@@ -168,11 +189,15 @@ export function SourceManager() {
     setStatus("");
     setError("");
     try {
-      const results = await scrapeAll({ maxSources: 10, maxArticlesPerSource: 6 });
+      const results = await scrapeAll({ maxSources: 50, maxArticlesPerSource: 4 });
       const created = results.reduce((sum, item) => sum + item.created, 0);
       const updated = results.reduce((sum, item) => sum + item.updated, 0);
       const browser = results.filter((item) => item.needsBrowser).length;
-      setStatus(`${created} new · ${updated} updated${browser ? ` · ${browser} need browser` : ""}`);
+      setStatus(
+        `${results.length} sources · ${created} new · ${updated} updated${
+          browser ? ` · ${browser} need browser` : ""
+        }`,
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sync failed.");
     } finally {
@@ -196,7 +221,7 @@ export function SourceManager() {
             disabled={syncingAll}
             className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-40"
           >
-            {syncingAll ? "Syncing…" : "Sync"}
+            {syncingAll ? "Syncing…" : "Sync all"}
           </button>
           <button
             type="button"
@@ -279,12 +304,31 @@ export function SourceManager() {
         </div>
       )}
 
+      <div className="grid gap-2 border-b border-white/[0.07] bg-black/10 p-3 sm:grid-cols-[1fr_auto] sm:px-5">
+        <input
+          value={sourceQuery}
+          onChange={(event) => setSourceQuery(event.target.value)}
+          placeholder="Search sources, categories, tags"
+          className="h-10 rounded-xl border border-white/10 bg-white/[0.035] px-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-300/35"
+        />
+        <select
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          className="h-10 rounded-xl border border-white/10 bg-[#0d0f11] px-3 text-xs text-white/65 outline-none"
+        >
+          <option value="All">All categories</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>{category}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="divide-y divide-white/[0.06]">
         {sources === undefined
           ? [0, 1, 2, 3, 4].map((item) => (
               <div key={item} className="h-[72px] animate-pulse bg-white/[0.02]" />
             ))
-          : sources.map((source) => (
+          : visibleSources.map((source) => (
               <div key={source._id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                 <button
                   type="button"
@@ -303,16 +347,22 @@ export function SourceManager() {
                 </button>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     <p className="truncate text-sm font-medium text-white/85">{source.name}</p>
-                    {source.recommended && (
-                      <span className="shrink-0 rounded-full border border-cyan-300/15 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-cyan-100/55">
-                        Top 10
+                    {source.quality ? (
+                      <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-white/38">
+                        {qualityLabel(source.quality)}
                       </span>
-                    )}
+                    ) : null}
+                    {source.priority === 1 ? (
+                      <span className="shrink-0 rounded-full border border-cyan-300/15 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-cyan-100/55">
+                        Core
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-0.5 truncate text-xs text-white/30">
                     {source.category} · {source.kind.toUpperCase()}
+                    {source.tags?.length ? ` · ${source.tags.slice(0, 2).join(" · ")}` : ""}
                   </p>
                 </div>
 
@@ -333,9 +383,19 @@ export function SourceManager() {
                 </button>
               </div>
             ))}
+        {sources !== undefined && visibleSources.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-white/35">No sources match these filters.</div>
+        ) : null}
       </div>
     </section>
   );
+}
+
+function qualityLabel(quality: SourceQuality) {
+  if (quality === "primary") return "Primary";
+  if (quality === "expert") return "Expert";
+  if (quality === "publication") return "Publication";
+  return "Community";
 }
 
 function Field({
