@@ -1,5 +1,12 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { recommendedSources } from "./sourceDefaults";
+
+const kindValidator = v.union(
+  v.literal("rss"),
+  v.literal("api"),
+  v.literal("web"),
+);
 
 const sourceValidator = v.object({
   _id: v.id("sources"),
@@ -9,11 +16,30 @@ const sourceValidator = v.object({
   siteUrl: v.string(),
   feedUrl: v.optional(v.string()),
   apiUrl: v.optional(v.string()),
-  kind: v.union(v.literal("rss"), v.literal("api")),
+  kind: kindValidator,
   category: v.string(),
   enabled: v.boolean(),
   createdAt: v.number(),
+  updatedAt: v.optional(v.number()),
+  recommended: v.optional(v.boolean()),
+  rank: v.optional(v.number()),
 });
+
+function sortSources<T extends { name: string; rank?: number }>(sources: T[]) {
+  return sources.sort((a, b) => {
+    const aRank = a.rank ?? Number.MAX_SAFE_INTEGER;
+    const bRank = b.rank ?? Number.MAX_SAFE_INTEGER;
+    return aRank - bRank || a.name.localeCompare(b.name);
+  });
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || `source-${Date.now()}`;
+}
 
 export const list = query({
   args: {},
@@ -24,6 +50,136 @@ export const list = query({
       .withIndex("by_enabled", (q) => q.eq("enabled", true))
       .take(100);
 
-    return sources.sort((a, b) => a.name.localeCompare(b.name));
+    return sortSources(sources);
+  },
+});
+
+export const listAll = query({
+  args: {},
+  returns: v.array(sourceValidator),
+  handler: async (ctx) => {
+    const sources = await ctx.db.query("sources").take(100);
+    return sortSources(sources);
+  },
+});
+
+export const ensureRecommended = mutation({
+  args: {},
+  returns: v.object({ added: v.number(), total: v.number() }),
+  handler: async (ctx) => {
+    let added = 0;
+    const now = Date.now();
+
+    for (const source of recommendedSources) {
+      const existing = await ctx.db
+        .query("sources")
+        .withIndex("by_slug", (q) => q.eq("slug", source.slug))
+        .unique();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          recommended: true,
+          rank: source.rank,
+          updatedAt: now,
+        });
+        continue;
+      }
+
+      await ctx.db.insert("sources", {
+        name: source.name,
+        slug: source.slug,
+        siteUrl: source.siteUrl,
+        ...("feedUrl" in source ? { feedUrl: source.feedUrl } : {}),
+        ...("apiUrl" in source ? { apiUrl: source.apiUrl } : {}),
+        kind: source.kind,
+        category: source.category,
+        enabled: true,
+        createdAt: now,
+        updatedAt: now,
+        recommended: true,
+        rank: source.rank,
+      });
+      added += 1;
+    }
+
+    return { added, total: recommendedSources.length };
+  },
+});
+
+export const create = mutation({
+  args: {
+    name: v.string(),
+    siteUrl: v.string(),
+    feedUrl: v.string(),
+    apiUrl: v.string(),
+    kind: kindValidator,
+    category: v.string(),
+  },
+  returns: v.id("sources"),
+  handler: async (ctx, args) => {
+    const slug = slugify(args.name);
+    const existing = await ctx.db
+      .query("sources")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+
+    if (existing) {
+      throw new Error("A source with this name already exists.");
+    }
+
+    const now = Date.now();
+    return await ctx.db.insert("sources", {
+      name: args.name.trim(),
+      slug,
+      siteUrl: args.siteUrl.trim(),
+      feedUrl: args.feedUrl.trim(),
+      apiUrl: args.apiUrl.trim(),
+      kind: args.kind,
+      category: args.category.trim(),
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+      recommended: false,
+    });
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("sources"),
+    name: v.string(),
+    siteUrl: v.string(),
+    feedUrl: v.string(),
+    apiUrl: v.string(),
+    kind: kindValidator,
+    category: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      name: args.name.trim(),
+      siteUrl: args.siteUrl.trim(),
+      feedUrl: args.feedUrl.trim(),
+      apiUrl: args.apiUrl.trim(),
+      kind: args.kind,
+      category: args.category.trim(),
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+export const setEnabled = mutation({
+  args: {
+    id: v.id("sources"),
+    enabled: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      enabled: args.enabled,
+      updatedAt: Date.now(),
+    });
+    return null;
   },
 });
