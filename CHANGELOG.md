@@ -2,6 +2,17 @@
 
 Tracks meaningful product, backend, infrastructure, and architecture changes. Keep entries short and user-impact focused.
 
+## 2026-08-29
+
+### Added
+- Added an autonomous supplemental primary-source catalog for important first-party research sections that are not covered by a publisher's normal news page.
+- Added Anthropic Research as a first-party AI research source, with an additional crawl entry point for the Societal Impacts research collection.
+- Added a six-hour maintenance job that creates missing supplemental sources and performs deeper ten-article crawls without requiring manual source setup or sync clicks.
+
+### Fixed
+- Fixed a source-coverage gap where Anthropic `/news` ingestion could not discover research published under `/research`, including the Anthropic Economic Index software-development report.
+- Supplemental collection crawls now reuse the canonical source identity, avoiding duplicate source records while making older high-value research searchable.
+
 ## 2026-08-24
 
 ### Added
