@@ -3,17 +3,18 @@ import { internalMutation } from "./_generated/server";
 
 const supplementalSources = [
   {
-    name: "Anthropic Societal Impacts",
-    slug: "anthropic-societal-impacts",
-    siteUrl: "https://www.anthropic.com/research/team/societal-impacts",
+    name: "Anthropic Research",
+    slug: "anthropic-research",
+    siteUrl: "https://www.anthropic.com/research",
+    crawlUrls: ["https://www.anthropic.com/research/team/societal-impacts"],
     kind: "web" as const,
     category: "AI Research",
     quality: "primary" as const,
     priority: 1,
     rank: 2.5,
     description:
-      "First-party Anthropic research on real-world AI use, work, society, values, and economic impact.",
-    tags: ["AI", "research", "economics", "work", "societal impacts"],
+      "First-party Anthropic research, including AI safety, economics, societal impacts, and model science.",
+    tags: ["AI", "research", "economics", "safety", "societal impacts"],
   },
 ] as const;
 
@@ -33,7 +34,10 @@ export const ensure = internalMutation({
   returns: v.array(
     v.object({
       sourceId: v.id("sources"),
+      sourceName: v.string(),
+      category: v.string(),
       enabled: v.boolean(),
+      crawlUrls: v.array(v.string()),
     }),
   ),
   handler: async (ctx) => {
@@ -43,14 +47,26 @@ export const ensure = internalMutation({
     const bySiteUrl = new Map(
       existingSources.map((source) => [normalizeSiteUrl(source.siteUrl), source]),
     );
-    const targets: Array<{ sourceId: (typeof existingSources)[number]["_id"]; enabled: boolean }> = [];
+    const targets: Array<{
+      sourceId: (typeof existingSources)[number]["_id"];
+      sourceName: string;
+      category: string;
+      enabled: boolean;
+      crawlUrls: string[];
+    }> = [];
 
     for (const source of supplementalSources) {
       const existing =
         bySlug.get(source.slug) ?? bySiteUrl.get(normalizeSiteUrl(source.siteUrl));
 
       if (existing) {
-        targets.push({ sourceId: existing._id, enabled: existing.enabled });
+        targets.push({
+          sourceId: existing._id,
+          sourceName: existing.name,
+          category: existing.category,
+          enabled: existing.enabled,
+          crawlUrls: [...source.crawlUrls],
+        });
         continue;
       }
 
@@ -71,7 +87,13 @@ export const ensure = internalMutation({
         priority: source.priority,
       });
 
-      targets.push({ sourceId, enabled: true });
+      targets.push({
+        sourceId,
+        sourceName: source.name,
+        category: source.category,
+        enabled: true,
+        crawlUrls: [...source.crawlUrls],
+      });
     }
 
     return targets;
