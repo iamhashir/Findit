@@ -9,6 +9,13 @@ const syncDueSources = (anyApi as any).ingestion.syncDueSources as FunctionRefer
   null
 >;
 
+const syncSupplementalSources = (anyApi as any).supplementalIngestion.sync as FunctionReference<
+  "action",
+  "internal",
+  {},
+  null
+>;
+
 const compactLegacyHighlights = (anyApi as any).articles.compactLegacyHighlights as FunctionReference<
   "mutation",
   "internal",
@@ -20,6 +27,13 @@ crons.interval(
   "sync due sources",
   { hours: 1 },
   syncDueSources,
+  {},
+);
+
+crons.interval(
+  "sync supplemental primary research",
+  { hours: 6 },
+  syncSupplementalSources,
   {},
 );
 
